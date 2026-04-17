@@ -1,0 +1,5 @@
+flask>=3.0.0
+folium>=0.17.0
+networkx>=3.3
+requests>=2.32.0
+gunicorn>=22.0.0

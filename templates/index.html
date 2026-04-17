@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
+  <meta name="theme-color" content="#6c63ff"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <meta name="apple-mobile-web-app-title" content="Eleven Maps"/>
+  <link rel="manifest" href="/static/manifest.json"/>
+  <link rel="apple-touch-icon" href="/static/icon-192.png"/>
+  <title>Eleven Maps v2</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --bg:#0d0f14;--surface:#141720;--border:#22263a;
+      --accent:#6c63ff;--accent2:#48bfe3;--text:#e8eaf0;
+      --muted:#6b7280;--card:#181c28;
+      --green:#4ade80;--yellow:#facc15;--red:#f87171;
+    }
+    /* DAY MODE */
+    body.day-mode{
+      --bg:#f0f4f8;--surface:#ffffff;--border:#dde3ed;
+      --text:#1a1d2e;--muted:#6b7280;--card:#f8fafc;
+    }
+
+    html,body{height:100%;font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);overflow:hidden;}
+
+    /* HEADER */
+    header{
+      height:56px;padding:0 1.2rem;display:flex;align-items:center;gap:0.8rem;
+      border-bottom:1px solid var(--border);background:var(--surface);
+      position:relative;z-index:100;flex-shrink:0;
+    }
+    .logo{width:32px;height:32px;background:linear-gradient(135deg,var(--accent),var(--accent2));border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;}
+    header h1{font-family:'Syne',sans-serif;font-weight:800;font-size:1.2rem;letter-spacing:-0.5px;}
+    header h1 span{background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+    .header-actions{margin-left:auto;display:flex;align-items:center;gap:8px;}
+    .icon-btn{width:34px;height:34px;border-radius:9px;border:1px solid var(--border);background:var(--card);color:var(--muted);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:15px;transition:all 0.2s;}
+    .icon-btn:hover,.icon-btn.active{background:var(--accent);color:#fff;border-color:var(--accent);}
+    .badge-v2{font-size:0.65rem;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--accent);border:1px solid var(--accent);padding:2px 8px;border-radius:20px;opacity:0.8;}
+
+    /* LAYOUT */
+    .app-body{display:flex;height:calc(100vh - 56px);}
+
+    /* SIDEBAR */
+    .sidebar{
+      width:340px;min-width:340px;background:var(--surface);border-right:1px solid var(--border);
+      display:flex;flex-direction:column;overflow-y:auto;transition:transform 0.3s;
+    }
+    .sidebar.hidden{transform:translateX(-100%);}
+    .sidebar-inner{padding:1.4rem 1.2rem;display:flex;flex-direction:column;gap:1.2rem;}
+
+    .section-label{font-family:'Syne',sans-serif;font-size:0.68rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted);}
+
+    /* FIELDS */
+    .field-group{display:flex;flex-direction:column;gap:0.45rem;position:relative;}
+    .field-label{font-size:0.75rem;font-weight:500;color:var(--muted);display:flex;align-items:center;gap:6px;}
+    .dot-o{width:9px;height:9px;border-radius:50%;background:var(--accent2);display:inline-block;}
+    .dot-d{width:9px;height:9px;border-radius:50%;background:var(--accent);display:inline-block;}
+    input[type="text"]{
+      background:var(--card);border:1px solid var(--border);border-radius:10px;
+      padding:0.7rem 1rem;color:var(--text);font-family:'DM Sans',sans-serif;
+      font-size:0.88rem;outline:none;transition:border-color 0.2s,box-shadow 0.2s;width:100%;
+    }
+    input[type="text"]:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(108,99,255,0.15);}
+    input[type="text"]::placeholder{color:var(--muted);}
+
+    /* AUTOCOMPLETE */
+    .suggestions{position:absolute;top:100%;left:0;right:0;z-index:500;background:#1a1d2e;border:1px solid var(--border);border-radius:10px;margin-top:4px;overflow:hidden;box-shadow:0 8px 24px rgba(0,0,0,0.4);display:none;}
+    .suggestions.open{display:block;}
+    .sug-item{padding:0.6rem 1rem;font-size:0.8rem;color:var(--text);cursor:pointer;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;transition:background 0.15s;}
+    .sug-item:last-child{border-bottom:none;}
+    .sug-item:hover{background:rgba(108,99,255,0.12);}
+
+    /* ROUTE MODE TOGGLE */
+    .route-mode{display:flex;gap:6px;}
+    .mode-btn{flex:1;padding:0.6rem;border-radius:9px;border:1px solid var(--border);background:var(--card);color:var(--muted);font-family:'Syne',sans-serif;font-size:0.72rem;font-weight:700;cursor:pointer;letter-spacing:0.5px;transition:all 0.2s;text-align:center;}
+    .mode-btn.active{background:var(--accent);color:#fff;border-color:var(--accent);}
+
+    /* BUTTON */
+    .btn-calc{
+      background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;border:none;
+      border-radius:10px;padding:0.85rem;font-family:'Syne',sans-serif;font-size:0.92rem;
+      font-weight:700;cursor:pointer;transition:opacity 0.2s,transform 0.1s;
+      display:flex;align-items:center;justify-content:center;gap:8px;letter-spacing:0.5px;
+    }
+    .btn-calc:hover{opacity:0.9;}
+    .btn-calc:active{transform:scale(0.98);}
+    .btn-calc:disabled{opacity:0.4;cursor:not-allowed;}
+
+    /* LOADING */
+    .loading-box{display:none;flex-direction:column;gap:0.55rem;}
+    .loading-box.show{display:flex;}
+    .load-step{font-size:0.78rem;color:var(--muted);display:flex;align-items:center;gap:8px;opacity:0.4;transition:opacity 0.3s;}
+    .load-step.active{color:var(--accent2);opacity:1;}
+    .load-step.done{color:var(--green);opacity:1;}
+    .spinner{width:13px;height:13px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;}
+    @keyframes spin{to{transform:rotate(360deg);}}
+
+    /* ERROR */
+    .error-box{display:none;background:rgba(248,113,113,0.08);border:1px solid rgba(248,113,113,0.25);border-radius:10px;padding:0.8rem 1rem;font-size:0.82rem;color:#fca5a5;}
+    .error-box.show{display:block;}
+
+    /* TRAFFIC */
+    .traffic-badge{display:none;align-items:center;gap:8px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:0.7rem 1rem;font-size:0.8rem;}
+    .traffic-badge.show{display:flex;}
+    .traffic-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+
+    /* STATS */
+    .stats{display:grid;grid-template-columns:1fr 1fr;gap:0.65rem;}
+    .stat-card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:0.8rem 0.9rem;}
+    .stat-value{font-family:'Syne',sans-serif;font-size:1.3rem;font-weight:800;line-height:1;}
+    .stat-label{font-size:0.66rem;color:var(--muted);margin-top:3px;text-transform:uppercase;letter-spacing:0.5px;}
+    .stat-card.a .stat-value{color:var(--accent);}
+    .stat-card.b .stat-value{color:var(--accent2);}
+
+    /* ROUTE NAMES */
+    .route-names{display:none;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:0.8rem 1rem;font-size:0.78rem;line-height:1.7;}
+    .route-names.show{display:block;}
+    .rn-label{color:var(--muted);font-size:0.67rem;text-transform:uppercase;letter-spacing:1px;}
+
+    /* DIVIDER */
+    .divider{height:1px;background:var(--border);}
+    .about{font-size:0.72rem;color:var(--muted);line-height:1.6;}
+    .about strong{color:var(--accent2);}
+
+    /* INSTALL BANNER */
+    .install-banner{display:none;background:linear-gradient(135deg,rgba(108,99,255,0.15),rgba(72,191,227,0.1));border:1px solid rgba(108,99,255,0.3);border-radius:10px;padding:0.8rem 1rem;font-size:0.78rem;align-items:center;gap:10px;}
+    .install-banner.show{display:flex;}
+    .install-btn{margin-left:auto;background:var(--accent);color:#fff;border:none;border-radius:7px;padding:5px 12px;font-family:'Syne',sans-serif;font-size:0.72rem;font-weight:700;cursor:pointer;white-space:nowrap;}
+
+    /* MAP */
+    .map-area{flex:1;position:relative;background:var(--bg);}
+    .map-placeholder{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1rem;color:var(--muted);}
+    .map-placeholder svg{opacity:0.08;}
+    .map-placeholder p{font-size:0.85rem;opacity:0.35;}
+    #map-container{width:100%;height:100%;}
+    #map-container iframe{width:100%;height:100%;border:none;}
+
+    /* CLOCK */
+    #clock{font-family:'Syne',sans-serif;font-size:0.8rem;color:var(--muted);letter-spacing:1px;}
+
+    /* MOBILE */
+    @media(max-width:768px){
+      .sidebar{position:absolute;z-index:200;height:100%;box-shadow:4px 0 20px rgba(0,0,0,0.4);}
+      .sidebar.hidden{display:none;}
+      .toggle-sidebar{display:flex!important;}
+    }
+    .toggle-sidebar{display:none;}
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">🗺️</div>
+  <h1><span>Eleven</span> Maps</h1>
+  <div class="header-actions">
+    <span id="clock"></span>
+    <div class="badge-v2">v2</div>
+    <button class="icon-btn toggle-sidebar" id="toggle-sidebar-btn" onclick="toggleSidebar()" title="Menu">☰</button>
+    <button class="icon-btn" id="theme-btn" onclick="toggleTheme()" title="Tema">🌙</button>
+    <button class="icon-btn" id="install-btn-header" style="display:none" onclick="installPWA()" title="Instalar app">📲</button>
+  </div>
+</header>
+
+<div class="app-body">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-inner">
+
+      <div class="install-banner" id="install-banner">
+        📲 Instale o Eleven Maps no seu celular!
+        <button class="install-btn" onclick="installPWA()">Instalar</button>
+      </div>
+
+      <p class="section-label">Calcular Rota</p>
+
+      <div class="field-group">
+        <label class="field-label"><span class="dot-o"></span> Origem</label>
+        <input type="text" id="origem" placeholder="Restaurante, endereço, local..." autocomplete="off" oninput="onInput('origem')" onblur="hideSug('origem')"/>
+        <div class="suggestions" id="sug-origem"></div>
+      </div>
+
+      <div class="field-group">
+        <label class="field-label"><span class="dot-d"></span> Destino</label>
+        <input type="text" id="destino" placeholder="Shopping, hospital, bairro..." autocomplete="off" oninput="onInput('destino')" onblur="hideSug('destino')"/>
+        <div class="suggestions" id="sug-destino"></div>
+      </div>
+
+      <div>
+        <label class="field-label" style="margin-bottom:8px;">🛣️ Tipo de Rota</label>
+        <div class="route-mode">
+          <button class="mode-btn active" id="mode-completo" onclick="setModo('completo')">🏘️ Todos bairros</button>
+          <button class="mode-btn" id="mode-principais" onclick="setModo('principais')">🛣️ Vias principais</button>
+        </div>
+      </div>
+
+      <button class="btn-calc" id="btn" onclick="calcularRota()">
+        <span>Calcular Rota</span>
+      </button>
+
+      <div class="loading-box" id="loading"></div>
+      <div class="error-box" id="error-box"></div>
+
+      <div class="traffic-badge" id="traffic-badge">
+        <div class="traffic-dot" id="traffic-dot"></div>
+        <span id="traffic-text">—</span>
+      </div>
+
+      <div class="route-names" id="route-names">
+        <div class="rn-label">Origem</div>
+        <div style="color:var(--text);font-weight:500;" id="rn-origem">—</div>
+        <div style="height:5px"></div>
+        <div class="rn-label">Destino</div>
+        <div style="color:var(--text);font-weight:500;" id="rn-destino">—</div>
+      </div>
+
+      <div class="stats" id="stats" style="display:none">
+        <div class="stat-card a"><div class="stat-value" id="s-dist">—</div><div class="stat-label">Distância km</div></div>
+        <div class="stat-card"><div class="stat-value" id="s-cruz">—</div><div class="stat-label">Cruzamentos</div></div>
+        <div class="stat-card b"><div class="stat-value" id="s-nos">—</div><div class="stat-label">Nós A*</div></div>
+        <div class="stat-card"><div class="stat-value" id="s-grafo">—</div><div class="stat-label">Nós grafo</div></div>
+      </div>
+
+      <div class="divider"></div>
+      <p class="about">
+        <strong>Eleven Maps v2</strong> — Algoritmo <strong>A*</strong> com dados reais do
+        <strong>OpenStreetMap</strong>. Trânsito via <strong>HERE Maps</strong>.
+        Cobertura: Estado de São Paulo.
+      </p>
+    </div>
+  </aside>
+
+  <main class="map-area">
+    <div class="map-placeholder" id="placeholder">
+      <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="0.8">
+        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+        <circle cx="12" cy="10" r="3"/>
+      </svg>
+      <p>Digite dois locais e calcule a rota</p>
+    </div>
+    <div id="map-container" style="display:none"></div>
+  </main>
+</div>
+
+<script>
+  // ── CLOCK ──
+  function updateClock() {
+    var now = new Date();
+    var h = String(now.getHours()).padStart(2,'0');
+    var m = String(now.getMinutes()).padStart(2,'0');
+    document.getElementById('clock').textContent = h + ':' + m;
+  }
+  updateClock();
+  setInterval(updateClock, 1000);
+
+  // ── THEME ──
+  var isDark = true;
+  function toggleTheme() {
+    isDark = !isDark;
+    document.body.classList.toggle('day-mode', !isDark);
+    document.getElementById('theme-btn').textContent = isDark ? '🌙' : '☀️';
+  }
+  // Auto theme by hour
+  var hour = new Date().getHours();
+  if (hour >= 6 && hour < 18) toggleTheme();
+
+  // ── SIDEBAR MOBILE ──
+  function toggleSidebar() {
+    document.getElementById('sidebar').classList.toggle('hidden');
+  }
+
+  // ── ROUTE MODE ──
+  var modoRota = 'completo';
+  function setModo(modo) {
+    modoRota = modo;
+    document.getElementById('mode-completo').classList.toggle('active', modo === 'completo');
+    document.getElementById('mode-principais').classList.toggle('active', modo === 'principais');
+  }
+
+  // ── AUTOCOMPLETE ──
+  var sugTimers = {};
+  function onInput(field) {
+    var val = document.getElementById(field).value.trim();
+    clearTimeout(sugTimers[field]);
+    if (val.length < 3) { hideSug(field); return; }
+    sugTimers[field] = setTimeout(() => fetchSug(field, val), 350);
+  }
+  function fetchSug(field, q) {
+    fetch('/sugestoes?q=' + encodeURIComponent(q))
+      .then(r => r.json()).then(data => showSug(field, data)).catch(() => {});
+  }
+  function showSug(field, items) {
+    var box = document.getElementById('sug-' + field);
+    if (!items.length) { box.classList.remove('open'); return; }
+    box.innerHTML = items.map(it =>
+      `<div class="sug-item" onmousedown="selectSug('${field}','${it.nome.replace(/'/g,"\\'")}')">
+        <span>${it.icone}</span>${it.nome}
+      </div>`
+    ).join('');
+    box.classList.add('open');
+  }
+  function selectSug(field, nome) {
+    document.getElementById(field).value = nome;
+    document.getElementById('sug-' + field).classList.remove('open');
+  }
+  function hideSug(field) {
+    setTimeout(() => {
+      var b = document.getElementById('sug-' + field);
+      if (b) b.classList.remove('open');
+    }, 150);
+  }
+
+  // ── LOADING STEPS ──
+  function setSteps(loading, n) {
+    var labels = ['Geocodificando locais...','Baixando mapa...','Buscando trânsito...','Executando A*...','Gerando mapa...'];
+    loading.innerHTML = labels.map((lb, i) => {
+      var idx = i + 1;
+      if (idx < n) return `<div class="load-step done"><span style="color:var(--green)">✓</span> ${lb}</div>`;
+      if (idx === n) return `<div class="load-step active"><div class="spinner"></div> ${lb}</div>`;
+      return `<div class="load-step">${lb}</div>`;
+    }).join('');
+  }
+
+  // ── MAIN ──
+  async function calcularRota() {
+    var origem = document.getElementById('origem').value.trim();
+    var destino = document.getElementById('destino').value.trim();
+    var btn = document.getElementById('btn');
+    var loading = document.getElementById('loading');
+    var errorBox = document.getElementById('error-box');
+
+    if (!origem || !destino) { mostrarErro('Preencha os dois campos.'); return; }
+
+    errorBox.className = 'error-box';
+    document.getElementById('stats').style.display = 'none';
+    document.getElementById('route-names').className = 'route-names';
+    document.getElementById('traffic-badge').className = 'traffic-badge';
+    btn.disabled = true;
+    btn.querySelector('span').textContent = 'Calculando...';
+    loading.className = 'loading-box show';
+    document.getElementById('map-container').style.display = 'none';
+    document.getElementById('placeholder').style.display = 'flex';
+
+    var step = 1; setSteps(loading, step);
+    var timer = setInterval(() => { step = Math.min(step + 1, 5); setSteps(loading, step); }, 3000);
+
+    try {
+      var resp = await fetch('/rota', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({origem, destino, modo_rota: modoRota})
+      });
+      clearInterval(timer);
+      var dados = await resp.json();
+      if (!resp.ok) { mostrarErro(dados.erro || 'Erro ao calcular.'); return; }
+
+      loading.innerHTML = ['Geocodificação','Mapa carregado','Trânsito obtido','A* executado','Mapa gerado']
+        .map(lb => `<div class="load-step done"><span style="color:var(--green)">✓</span> ${lb}</div>`).join('');
+
+      // Map
+      var container = document.getElementById('map-container');
+      container.style.display = 'block';
+      document.getElementById('placeholder').style.display = 'none';
+      container.innerHTML = dados.mapa_html;
+
+      // Stats
+      document.getElementById('s-dist').textContent = dados.distancia_km;
+      document.getElementById('s-cruz').textContent = dados.cruzamentos;
+      document.getElementById('s-nos').textContent = dados.nos_expandidos;
+      document.getElementById('s-grafo').textContent = dados.nos_grafo.toLocaleString('pt-BR');
+      document.getElementById('stats').style.display = 'grid';
+
+      // Route names
+      document.getElementById('rn-origem').textContent = dados.nome_origem;
+      document.getElementById('rn-destino').textContent = dados.nome_destino;
+      document.getElementById('route-names').className = 'route-names show';
+
+      // Traffic
+      if (dados.transito) {
+        var t = dados.transito;
+        var dot = document.getElementById('traffic-dot');
+        var txt = document.getElementById('traffic-text');
+        dot.style.background = t.cor;
+        dot.style.boxShadow = `0 0 8px ${t.cor}`;
+        var vel = t.velocidade_media > 0 ? ` · ${t.velocidade_media} km/h` : '';
+        txt.innerHTML = `🚦 Trânsito <b>${t.status}</b>${vel}`;
+        document.getElementById('traffic-badge').className = 'traffic-badge show';
+      }
+
+      // Close sidebar on mobile
+      if (window.innerWidth <= 768) {
+        document.getElementById('sidebar').classList.add('hidden');
+      }
+
+    } catch(e) {
+      clearInterval(timer);
+      mostrarErro('Erro de conexão com o servidor.');
+    } finally {
+      btn.disabled = false;
+      btn.querySelector('span').textContent = 'Calcular Rota';
+    }
+  }
+
+  function mostrarErro(msg) {
+    document.getElementById('error-box').textContent = '⚠ ' + msg;
+    document.getElementById('error-box').className = 'error-box show';
+    document.getElementById('loading').className = 'loading-box';
+  }
+
+  // ── PWA INSTALL ──
+  var deferredPrompt = null;
+  window.addEventListener('beforeinstallprompt', e => {
+    e.preventDefault();
+    deferredPrompt = e;
+    document.getElementById('install-banner').classList.add('show');
+    document.getElementById('install-btn-header').style.display = 'flex';
+  });
+  function installPWA() {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    deferredPrompt.userChoice.then(() => {
+      deferredPrompt = null;
+      document.getElementById('install-banner').classList.remove('show');
+      document.getElementById('install-btn-header').style.display = 'none';
+    });
+  }
+
+  // ── SERVICE WORKER ──
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/static/sw.js').catch(() => {});
+  }
+
+  // ── KEYBOARD ──
+  document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('origem').addEventListener('keydown', e => { if(e.key==='Enter') document.getElementById('destino').focus(); });
+    document.getElementById('destino').addEventListener('keydown', e => { if(e.key==='Enter') calcularRota(); });
+  });
+</script>
+</body>
+</html>
