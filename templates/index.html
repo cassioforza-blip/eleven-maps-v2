@@ -68,9 +68,9 @@
     input[type="text"]::placeholder{color:var(--muted);}
 
     /* AUTOCOMPLETE */
-    .suggestions{position:absolute;top:100%;left:0;right:0;z-index:500;background:#1a1d2e;border:1px solid var(--border);border-radius:10px;margin-top:4px;overflow:hidden;box-shadow:0 8px 24px rgba(0,0,0,0.4);display:none;}
+    .suggestions{position:absolute;top:100%;left:0;right:0;z-index:500;background:var(--card);border:1px solid var(--border);border-radius:10px;margin-top:4px;overflow:hidden;box-shadow:0 8px 24px rgba(0,0,0,0.4);display:none;}
     .suggestions.open{display:block;}
-    .sug-item{padding:0.6rem 1rem;font-size:0.8rem;color:var(--text);cursor:pointer;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;transition:background 0.15s;}
+    .sug-item{padding:0.6rem 1rem;font-size:0.8rem;color:var(--text);cursor:pointer;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;transition:background 0.15s;background:var(--card);}
     .sug-item:last-child{border-bottom:none;}
     .sug-item:hover{background:rgba(108,99,255,0.12);}
 
