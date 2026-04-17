@@ -53,9 +53,9 @@ def haversine(lat1, lon1, lat2, lon2):
 def requisicao_json(url, *, params=None, data=None, timeout=30):
     headers = {"User-Agent": USER_AGENT}
     if data is None:
-        r = requests.get(url, params=params, headers=headers, timeout=timeout)
+        r = requests.get(url, params=params, headers=headers, timeout=timeout, stream=False)
     else:
-        r = requests.post(url, data=data, headers=headers, timeout=timeout)
+        r = requests.post(url, data=data, headers=headers, timeout=timeout, stream=False)
     r.raise_for_status()
     return r.json()
 
@@ -158,11 +158,11 @@ def buscar_transito_here(lat1, lon1, lat2, lon2):
 def baixar_dados_viarios(origem, destino, modo="completo"):
     tipos = TIPOS_PRINCIPAIS if modo == "principais" else TODOS_TIPOS
     dist = haversine(origem[0], origem[1], destino[0], destino[1])
-    raio_seg = 3000
+    raio_seg = 2000
     if dist <= raio_seg * 1.4:
         lat_c = (origem[0] + destino[0]) / 2
         lon_c = (origem[1] + destino[1]) / 2
-        raio = max(2000, int(dist * 0.65))
+        raio = max(1500, int(dist * 0.6))
         raio = min(raio, raio_seg)
         segmentos = [(lat_c, lon_c, raio)]
     else:
@@ -193,7 +193,7 @@ def baixar_dados_viarios(origem, destino, modo="completo"):
         for url in OVERPASS_URLS:
             baixou = False
             try:
-                dados = requisicao_json(url, data={"data": consulta}, timeout=55)
+                dados = requisicao_json(url, data={"data": consulta}, timeout=40)
                 els = dados.get("elements", [])
                 for el in els:
                     elementos[el["id"]] = el
