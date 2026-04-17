@@ -218,9 +218,9 @@
 
       <div class="stats" id="stats" style="display:none">
         <div class="stat-card a"><div class="stat-value" id="s-dist">—</div><div class="stat-label">Distância km</div></div>
-        <div class="stat-card"><div class="stat-value" id="s-cruz">—</div><div class="stat-label">Cruzamentos</div></div>
-        <div class="stat-card b"><div class="stat-value" id="s-nos">—</div><div class="stat-label">Nós A*</div></div>
-        <div class="stat-card"><div class="stat-value" id="s-grafo">—</div><div class="stat-label">Nós grafo</div></div>
+        <div class="stat-card"><div class="stat-value" id="s-dur">—</div><div class="stat-label">Duração min</div></div>
+        <div class="stat-card b"><div class="stat-value" id="s-pts">—</div><div class="stat-label">Pontos rota</div></div>
+        <div class="stat-card"><div class="stat-value" id="s-api">HERE</div><div class="stat-label">API Rotas</div></div>
       </div>
 
       <div class="divider"></div>
@@ -367,9 +367,9 @@
 
       // Stats
       document.getElementById('s-dist').textContent = dados.distancia_km;
-      document.getElementById('s-cruz').textContent = dados.cruzamentos;
-      document.getElementById('s-nos').textContent = dados.nos_expandidos;
-      document.getElementById('s-grafo').textContent = dados.nos_grafo.toLocaleString('pt-BR');
+      document.getElementById('s-dur').textContent = dados.duracao_min || '—';
+      document.getElementById('s-pts').textContent = dados.pontos_rota || '—';
+      document.getElementById('s-api').textContent = 'HERE';
       document.getElementById('stats').style.display = 'grid';
 
       // Route names

@@ -1,63 +1,18 @@
 import gc
-import heapq
 import json
 import math
-import time
-import hashlib
 
 import folium
-import networkx as nx
 import requests
 from flask import Flask, render_template, request, jsonify, send_from_directory
 
 app = Flask(__name__)
 
-# Cache simples em memória para dados OSM
-_osm_cache = {}
-_cache_max = 20
-
 HERE_API_KEY = "o1Sag5mVi2b4Y81hY9tXEuGggmUi8W_tX0uaetJFPEg"
 NOMINATIM_URL = "https://nominatim.openstreetmap.org/search"
-OVERPASS_URLS = [
-    "https://overpass-api.de/api/interpreter",
-    "https://overpass.kumi.systems/api/interpreter",
-    "https://lz4.overpass-api.de/api/interpreter",
-]
 USER_AGENT = "eleven-maps-v2/1.0"
 
-TIPOS_PRINCIPAIS = {
-    "motorway", "trunk", "primary", "secondary",
-    "motorway_link", "trunk_link", "primary_link", "secondary_link",
-}
-TIPOS_BAIRROS = {
-    "tertiary", "unclassified", "residential", "living_street",
-    "service", "tertiary_link",
-}
-TODOS_TIPOS = TIPOS_PRINCIPAIS | TIPOS_BAIRROS
-
 SP_BOUNDS = {"lat_min": -25.3, "lat_max": -19.7, "lon_min": -53.2, "lon_max": -44.1}
-
-
-class FalhaMapa(Exception):
-    pass
-
-
-def haversine(lat1, lon1, lat2, lon2):
-    R = 6_371_000
-    dlat = math.radians(lat2 - lat1)
-    dlon = math.radians(lon2 - lon1)
-    a = math.sin(dlat/2)**2 + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlon/2)**2
-    return R * 2 * math.asin(math.sqrt(a))
-
-
-def requisicao_json(url, *, params=None, data=None, timeout=30):
-    headers = {"User-Agent": USER_AGENT}
-    if data is None:
-        r = requests.get(url, params=params, headers=headers, timeout=timeout, stream=False)
-    else:
-        r = requests.post(url, data=data, headers=headers, timeout=timeout, stream=False)
-    r.raise_for_status()
-    return r.json()
 
 
 def dentro_de_sp(lat, lon):
@@ -69,17 +24,18 @@ def geocodificar_endereco(texto):
     tentativas = [
         f"{texto.strip()}, São Paulo, Brasil",
         f"{texto.strip()}, SP, Brasil",
-        f"{texto.strip()}, Brasil",
         texto.strip(),
     ]
+    headers = {"User-Agent": USER_AGENT}
     for consulta in tentativas:
         try:
-            dados = requisicao_json(NOMINATIM_URL, params={
+            r = requests.get(NOMINATIM_URL, params={
                 "q": consulta, "format": "jsonv2", "limit": 5,
                 "addressdetails": 1, "countrycodes": "br",
                 "viewbox": f"{SP_BOUNDS['lon_min']},{SP_BOUNDS['lat_max']},{SP_BOUNDS['lon_max']},{SP_BOUNDS['lat_min']}",
                 "bounded": 1,
-            })
+            }, headers=headers, timeout=10)
+            dados = r.json()
             for local in dados:
                 lat, lon = float(local["lat"]), float(local["lon"])
                 if dentro_de_sp(lat, lon):
@@ -93,14 +49,15 @@ def geocodificar_endereco(texto):
 
 def sugerir_locais(texto):
     try:
-        dados = requisicao_json(NOMINATIM_URL, params={
+        headers = {"User-Agent": USER_AGENT}
+        r = requests.get(NOMINATIM_URL, params={
             "q": f"{texto.strip()}, São Paulo",
             "format": "jsonv2", "limit": 7, "addressdetails": 1, "countrycodes": "br",
             "viewbox": f"{SP_BOUNDS['lon_min']},{SP_BOUNDS['lat_max']},{SP_BOUNDS['lon_max']},{SP_BOUNDS['lat_min']}",
             "bounded": 1,
-        })
+        }, headers=headers, timeout=8)
         resultado = []
-        for local in dados:
+        for local in r.json():
             lat, lon = float(local["lat"]), float(local["lon"])
             if not dentro_de_sp(lat, lon):
                 continue
@@ -125,176 +82,168 @@ def sugerir_locais(texto):
         return []
 
 
+def calcular_rota_here(lat1, lon1, lat2, lon2, modo="fast"):
+    """Usa HERE Routing API v8 para calcular a rota."""
+    url = "https://router.hereapi.com/v8/routes"
+    params = {
+        "apiKey": HERE_API_KEY,
+        "transportMode": "car",
+        "origin": f"{lat1},{lon1}",
+        "destination": f"{lat2},{lon2}",
+        "return": "polyline,summary,instructions",
+        "routingMode": modo,  # "fast" ou "short"
+        "spans": "names",
+    }
+    r = requests.get(url, params=params, timeout=15)
+    r.raise_for_status()
+    return r.json()
+
+
 def buscar_transito_here(lat1, lon1, lat2, lon2):
-    """Busca dados de trânsito via HERE Traffic API."""
     try:
         url = "https://data.traffic.hereapi.com/v7/flow"
         params = {
+            "apiKey": HERE_API_KEY,
             "locationReferencing": "shape",
             "in": f"bbox:{min(lon1,lon2)-0.05},{min(lat1,lat2)-0.05},{max(lon1,lon2)+0.05},{max(lat1,lat2)+0.05}",
-            "apiKey": HERE_API_KEY,
         }
-        r = requests.get(url, params=params, timeout=10)
+        r = requests.get(url, params=params, timeout=8)
         if r.status_code == 200:
             dados = r.json()
             resultados = dados.get("results", [])
-            if resultados:
-                speeds = []
-                for res in resultados[:20]:
-                    current = res.get("currentFlow", {})
-                    speed = current.get("speed", 0)
-                    if speed > 0:
-                        speeds.append(speed)
-                if speeds:
-                    avg = sum(speeds) / len(speeds)
-                    if avg > 60: return {"status": "livre", "cor": "#4ade80", "velocidade_media": round(avg)}
-                    elif avg > 30: return {"status": "moderado", "cor": "#facc15", "velocidade_media": round(avg)}
-                    else: return {"status": "congestionado", "cor": "#f87171", "velocidade_media": round(avg)}
+            speeds = []
+            for res in resultados[:20]:
+                speed = res.get("currentFlow", {}).get("speed", 0)
+                if speed > 0:
+                    speeds.append(speed)
+            if speeds:
+                avg = sum(speeds) / len(speeds)
+                if avg > 60: return {"status": "livre", "cor": "#4ade80", "velocidade_media": round(avg)}
+                elif avg > 30: return {"status": "moderado", "cor": "#facc15", "velocidade_media": round(avg)}
+                else: return {"status": "congestionado", "cor": "#f87171", "velocidade_media": round(avg)}
     except Exception:
         pass
     return {"status": "indisponível", "cor": "#6b7280", "velocidade_media": 0}
 
 
-def baixar_dados_viarios(origem, destino, modo="completo"):
-    tipos = TIPOS_PRINCIPAIS if modo == "principais" else TODOS_TIPOS
-    dist = haversine(origem[0], origem[1], destino[0], destino[1])
-    raio_seg = 2000
-    if dist <= raio_seg * 1.4:
-        lat_c = (origem[0] + destino[0]) / 2
-        lon_c = (origem[1] + destino[1]) / 2
-        raio = max(1500, int(dist * 0.6))
-        raio = min(raio, raio_seg)
-        segmentos = [(lat_c, lon_c, raio)]
-    else:
-        n = min(int(dist / raio_seg) + 2, 4)
-        segmentos = []
-        for i in range(n):
-            t = i / (n - 1)
-            lat = origem[0] + t * (destino[0] - origem[0])
-            lon = origem[1] + t * (destino[1] - origem[1])
-            segmentos.append((lat, lon, raio_seg))
-
-    elementos = {}
-    for lat_c, lon_c, raio in segmentos:
-        filtro_highway = "|".join(tipos)
-        consulta = f"""
-        [out:json][timeout:45];
-        (way["highway"~"^({filtro_highway})$"](around:{raio},{lat_c},{lon_c}););
-        (._;>;);
-        out body;
-        """
-        # Chave de cache para este segmento
-        cache_key = hashlib.md5(consulta.encode()).hexdigest()
-        if cache_key in _osm_cache:
-            for el in _osm_cache[cache_key]:
-                elementos[el["id"]] = el
-            continue
-
-        for url in OVERPASS_URLS:
-            baixou = False
-            try:
-                dados = requisicao_json(url, data={"data": consulta}, timeout=40)
-                els = dados.get("elements", [])
-                for el in els:
-                    elementos[el["id"]] = el
-                # Salva no cache
-                if len(_osm_cache) >= _cache_max:
-                    _osm_cache.pop(next(iter(_osm_cache)))
-                _osm_cache[cache_key] = els
-                baixou = True
-            except requests.RequestException as e:
-                if "429" in str(e):
-                    time.sleep(5)
-                continue
-            if baixou:
+def decodificar_polyline_here(encoded):
+    """Decodifica o formato polyline da HERE."""
+    import struct
+    result = []
+    index = 0
+    lat = 0
+    lng = 0
+    while index < len(encoded):
+        b, shift, val = 0, 0, 0
+        while True:
+            b = ord(encoded[index]) - 63
+            index += 1
+            val |= (b & 0x1f) << shift
+            shift += 5
+            if b < 0x20:
                 break
-
-    if not elementos:
-        raise FalhaMapa("Não foi possível baixar dados viários.")
-    return {"elements": list(elementos.values())}
-
-
-def construir_grafo(dados, modo="completo"):
-    tipos = TIPOS_PRINCIPAIS if modo == "principais" else TODOS_TIPOS
-    G = nx.DiGraph()
-    coords = {}
-    for el in dados.get("elements", []):
-        if el.get("type") == "node":
-            coords[el["id"]] = (el["lat"], el["lon"])
-            G.add_node(el["id"], y=el["lat"], x=el["lon"])
-    for el in dados.get("elements", []):
-        if el.get("type") != "way": continue
-        tags = el.get("tags", {})
-        if tags.get("highway") not in tipos: continue
-        nos = el.get("nodes", [])
-        if len(nos) < 2: continue
-        oneway = str(tags.get("oneway", "no")).lower()
-        nome = tags.get("name", "Rua sem nome")
-        for o, d in zip(nos, nos[1:]):
-            if o not in coords or d not in coords: continue
-            dist = haversine(*coords[o], *coords[d])
-            if oneway in {"yes", "true", "1"}:
-                G.add_edge(o, d, length=dist, name=nome)
-            elif oneway == "-1":
-                G.add_edge(d, o, length=dist, name=nome)
-            else:
-                G.add_edge(o, d, length=dist, name=nome)
-                G.add_edge(d, o, length=dist, name=nome)
-    return G
+        dlat = ~(val >> 1) if (val & 1) else (val >> 1)
+        lat += dlat
+        b, shift, val = 0, 0, 0
+        while True:
+            b = ord(encoded[index]) - 63
+            index += 1
+            val |= (b & 0x1f) << shift
+            shift += 5
+            if b < 0x20:
+                break
+        dlng = ~(val >> 1) if (val & 1) else (val >> 1)
+        lng += dlng
+        result.append((lat * 1e-5, lng * 1e-5))
+    return result
 
 
-def no_mais_proximo(G, coord):
-    lat, lon = coord
-    melhor, menor = None, float("inf")
-    for no, dados in G.nodes(data=True):
-        dist = haversine(lat, lon, dados["y"], dados["x"])
-        if dist < menor:
-            menor = dist
-            melhor = no
-    if melhor is None:
-        raise FalhaMapa("Nenhum nó próximo encontrado.")
-    return melhor
+def decodificar_flexpolyline(encoded):
+    """Decodifica o formato flexpolyline da HERE v8."""
+    try:
+        import urllib.parse
+        # HERE uses a custom format - try simple lat/lng extraction
+        coords = []
+        # The HERE v8 API returns coordinates in sections
+        return coords
+    except Exception:
+        return []
 
 
-def heuristica(G, atual, destino):
-    a, d = G.nodes[atual], G.nodes[destino]
-    return haversine(a["y"], a["x"], d["y"], d["x"])
+def extrair_coords_rota(rota_here):
+    """Extrai coordenadas da resposta da HERE Routing API v8."""
+    coords = []
+    try:
+        routes = rota_here.get("routes", [])
+        if not routes:
+            return coords
+        route = routes[0]
+        for section in route.get("sections", []):
+            polyline = section.get("polyline", "")
+            if polyline:
+                # HERE v8 usa flexible polyline encoding
+                decoded = decode_here_polyline(polyline)
+                coords.extend(decoded)
+    except Exception as e:
+        pass
+    return coords
 
 
-def a_estrela(G, origem, destino):
-    fila = [(0.0, 0, origem)]
-    contador = 0
-    custo = {origem: 0.0}
-    veio_de = {}
-    explorados = set()
-    nos_expandidos = 0
-    while fila:
-        _, _, atual = heapq.heappop(fila)
-        if atual in explorados: continue
-        explorados.add(atual)
-        nos_expandidos += 1
-        if atual == destino:
-            caminho = [destino]
-            while caminho[-1] != origem:
-                caminho.append(veio_de[caminho[-1]])
-            caminho.reverse()
-            return caminho, custo[destino], nos_expandidos
-        for viz in G.neighbors(atual):
-            novo = custo[atual] + G[atual][viz]["length"]
-            if viz not in custo or novo < custo[viz]:
-                custo[viz] = novo
-                veio_de[viz] = atual
-                prioridade = novo + heuristica(G, viz, destino)
-                contador += 1
-                heapq.heappush(fila, (prioridade, contador, viz))
-    return None, float("inf"), nos_expandidos
+def decode_here_polyline(encoded):
+    """Decodifica HERE Flexible Polyline."""
+    FORMAT_VERSION = 1
+    result = []
+    try:
+        header_char = encoded[0]
+        version = ord(header_char) - 63
+        if version != FORMAT_VERSION:
+            pass
+
+        precision = (ord(encoded[1]) - 63) & 0x0f
+        multiplier = 10 ** (-precision)
+        third_dim = (ord(encoded[1]) - 63) >> 4
+        has_third = third_dim > 0
+
+        index = 2
+        last_lat = 0
+        last_lng = 0
+
+        def decode_unsigned(enc, idx):
+            result = 0
+            shift = 0
+            while True:
+                c = ord(enc[idx]) - 63
+                idx += 1
+                result |= (c & 0x1f) << shift
+                shift += 5
+                if c < 0x20:
+                    break
+            return result, idx
+
+        def to_signed(val):
+            if val & 1:
+                return ~(val >> 1)
+            return val >> 1
+
+        while index < len(encoded):
+            val, index = decode_unsigned(encoded, index)
+            last_lat += to_signed(val)
+            val, index = decode_unsigned(encoded, index)
+            last_lng += to_signed(val)
+            if has_third:
+                val, index = decode_unsigned(encoded, index)
+            result.append((last_lat * multiplier, last_lng * multiplier))
+    except Exception:
+        pass
+    return result
 
 
-def gerar_mapa_html(G, caminho, coord_origem, coord_destino, end_origem, end_destino, custo, transito):
-    coords_rota = [[G.nodes[n]["y"], G.nodes[n]["x"]] for n in caminho]
+def gerar_mapa_html(coords_rota, coord_origem, coord_destino, end_origem, end_destino, duracao_min, distancia_km, transito):
+    if not coords_rota:
+        return None
+
     centro = [(coord_origem[0] + coord_destino[0]) / 2, (coord_origem[1] + coord_destino[1]) / 2]
-    dist_km = custo / 1000
-    zoom = 15 if dist_km < 2 else 14 if dist_km < 5 else 13 if dist_km < 15 else 11
+    zoom = 15 if distancia_km < 2 else 14 if distancia_km < 5 else 13 if distancia_km < 15 else 11
 
     mapa = folium.Map(location=centro, zoom_start=zoom, tiles="CartoDB dark_matter")
     folium.PolyLine(coords_rota, color="#6c63ff", weight=7, opacity=0.9).add_to(mapa)
@@ -304,7 +253,7 @@ def gerar_mapa_html(G, caminho, coord_origem, coord_destino, end_origem, end_des
     folium.Marker(coord_destino, popup=f"<b>Destino</b><br>{end_destino}",
                   icon=folium.Icon(color="purple", icon="flag", prefix="fa")).add_to(mapa)
 
-    coords_json = json.dumps(coords_rota)
+    coords_json = json.dumps([[c[0], c[1]] for c in coords_rota])
     transito_json = json.dumps(transito)
 
     nav_script = f"""
@@ -325,23 +274,22 @@ def gerar_mapa_html(G, caminho, coord_origem, coord_destino, end_origem, end_des
 
             var carIcon = L.divIcon({{
                 className: '',
-                html: '<div style="width:26px;height:26px;background:linear-gradient(135deg,#6c63ff,#48bfe3);border-radius:50%;border:3px solid #fff;box-shadow:0 0 16px #6c63ff,0 0 4px #48bfe3;transition:all 0.2s;"></div>',
+                html: '<div style="width:26px;height:26px;background:linear-gradient(135deg,#6c63ff,#48bfe3);border-radius:50%;border:3px solid #fff;box-shadow:0 0 16px #6c63ff;"></div>',
                 iconSize: [26,26], iconAnchor: [13,13]
             }});
             marker = L.marker(routeCoords[0], {{icon: carIcon}}).addTo(map);
 
-            var corTransito = transito.cor || '#6b7280';
-            var statusTransito = transito.status || 'indisponível';
-            var velTransito = transito.velocidade_media || 0;
+            var corT = transito.cor || '#6b7280';
+            var statusT = transito.status || 'indisponível';
+            var velT = transito.velocidade_media || 0;
 
             var panel = document.createElement('div');
-            panel.id = 'nav-panel';
-            panel.style.cssText = 'position:fixed;bottom:24px;right:24px;z-index:9999;background:rgba(14,15,20,0.97);border:1px solid rgba(108,99,255,0.4);border-radius:20px;padding:20px 22px;font-family:Syne,sans-serif;color:#e8eaf0;min-width:240px;box-shadow:0 0 40px rgba(108,99,255,0.2),0 8px 32px rgba(0,0,0,0.6);backdrop-filter:blur(20px);';
+            panel.style.cssText = 'position:fixed;bottom:24px;right:24px;z-index:9999;background:rgba(14,15,20,0.97);border:1px solid rgba(108,99,255,0.4);border-radius:20px;padding:20px 22px;font-family:Syne,sans-serif;color:#e8eaf0;min-width:240px;box-shadow:0 0 40px rgba(108,99,255,0.2);backdrop-filter:blur(20px);';
             panel.innerHTML = `
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
                     <div style="font-size:10px;letter-spacing:2.5px;color:#6b7280;text-transform:uppercase;">Navegação</div>
-                    <div style="font-size:10px;padding:3px 8px;border-radius:20px;background:${{corTransito}}22;color:${{corTransito}};border:1px solid ${{corTransito}}44;">
-                        ${{statusTransito}}${{velTransito > 0 ? ' · ' + velTransito + ' km/h' : ''}}
+                    <div style="font-size:10px;padding:3px 8px;border-radius:20px;background:${{corT}}22;color:${{corT}};border:1px solid ${{corT}}44;">
+                        ${{statusT}}${{velT > 0 ? ' · ' + velT + ' km/h' : ''}}
                     </div>
                 </div>
                 <div id="npct" style="font-size:38px;font-weight:800;background:linear-gradient(135deg,#6c63ff,#48bfe3);-webkit-background-clip:text;-webkit-text-fill-color:transparent;line-height:1;">0%</div>
@@ -357,15 +305,13 @@ def gerar_mapa_html(G, caminho, coord_origem, coord_destino, end_origem, end_des
             `;
             document.body.appendChild(panel);
 
-            // GPS Speed tracking
             var watchId = null;
             function startGPS() {{
                 if (!navigator.geolocation) return;
                 watchId = navigator.geolocation.watchPosition(function(pos) {{
                     var speed = pos.coords.speed;
                     if (speed !== null && speed >= 0) {{
-                        var kmh = Math.round(speed * 3.6);
-                        document.getElementById('nspeed').textContent = '📍 GPS: ' + kmh + ' km/h';
+                        document.getElementById('nspeed').textContent = '📍 GPS: ' + Math.round(speed * 3.6) + ' km/h';
                     }}
                 }}, null, {{enableHighAccuracy: true, maximumAge: 1000}});
             }}
@@ -378,8 +324,7 @@ def gerar_mapa_html(G, caminho, coord_origem, coord_destino, end_origem, end_des
                         document.getElementById('nstatus').textContent = 'Pausado';
                     }} else {{
                         if (currentIndex >= routeCoords.length - 1) this.reset();
-                        isPlaying = true;
-                        startGPS();
+                        isPlaying = true; startGPS();
                         document.getElementById('nbtn').textContent = '⏸ Pausar';
                         document.getElementById('nstatus').textContent = 'Navegando...';
                         animInterval = setInterval(function() {{
@@ -446,12 +391,11 @@ def calcular_rota():
     dados = request.get_json()
     end_origem = dados.get("origem", "").strip()
     end_destino = dados.get("destino", "").strip()
-    modo_rota = dados.get("modo_rota", "completo")  # "principais" ou "completo"
+    modo_rota = dados.get("modo_rota", "completo")
 
     if not end_origem or not end_destino:
         return jsonify({"erro": "Preencha os dois campos."}), 400
 
-    G = None
     try:
         res_origem = geocodificar_endereco(end_origem)
         if not res_origem:
@@ -465,51 +409,58 @@ def calcular_rota():
         coord_destino = (res_destino[0], res_destino[1])
         nome_destino = res_destino[2]
 
-        # Busca trânsito em paralelo
-        transito = buscar_transito_here(coord_origem[0], coord_origem[1], coord_destino[0], coord_destino[1])
+        # Modo de rota HERE
+        here_modo = "short" if modo_rota == "principais" else "fast"
 
-        dados_osm = baixar_dados_viarios(coord_origem, coord_destino, modo_rota)
-        G = construir_grafo(dados_osm, modo_rota)
-        del dados_osm
-        gc.collect()
+        # Calcula rota via HERE
+        rota_here = calcular_rota_here(
+            coord_origem[0], coord_origem[1],
+            coord_destino[0], coord_destino[1],
+            here_modo
+        )
 
-        if G.number_of_nodes() == 0:
-            return jsonify({"erro": "Nenhum dado viário encontrado."}), 500
+        # Extrai coordenadas
+        coords_rota = extrair_coords_rota(rota_here)
+        if not coords_rota:
+            return jsonify({"erro": "Não foi possível calcular a rota entre os pontos."}), 404
 
-        no_orig = no_mais_proximo(G, coord_origem)
-        no_dest = no_mais_proximo(G, coord_destino)
-        caminho, custo_total, nos_exp = a_estrela(G, no_orig, no_dest)
+        # Extrai resumo
+        route = rota_here.get("routes", [{}])[0]
+        section = route.get("sections", [{}])[0]
+        summary = section.get("summary", {})
+        distancia_m = summary.get("length", 0)
+        duracao_s = summary.get("duration", 0)
+        distancia_km = round(distancia_m / 1000, 2)
+        duracao_min = round(duracao_s / 60)
 
-        if caminho is None:
-            if modo_rota == "principais":
-                return jsonify({"erro": "Sem rota por vias principais. Tente o modo completo."}), 404
-            return jsonify({"erro": "Nenhum caminho encontrado entre os pontos."}), 404
+        # Trânsito
+        transito = buscar_transito_here(
+            coord_origem[0], coord_origem[1],
+            coord_destino[0], coord_destino[1]
+        )
 
-        nos_grafo = G.number_of_nodes()
-        mapa_html = gerar_mapa_html(G, caminho, coord_origem, coord_destino,
-                                    nome_origem, nome_destino, custo_total, transito)
-        del G
-        gc.collect()
+        mapa_html = gerar_mapa_html(
+            coords_rota, coord_origem, coord_destino,
+            nome_origem, nome_destino, duracao_min, distancia_km, transito
+        )
+
+        if not mapa_html:
+            return jsonify({"erro": "Erro ao gerar o mapa."}), 500
 
         return jsonify({
             "mapa_html": mapa_html,
-            "distancia_km": round(custo_total / 1000, 2),
-            "cruzamentos": len(caminho),
-            "nos_expandidos": nos_exp,
-            "nos_grafo": nos_grafo,
+            "distancia_km": distancia_km,
+            "duracao_min": duracao_min,
+            "pontos_rota": len(coords_rota),
             "nome_origem": nome_origem,
             "nome_destino": nome_destino,
             "transito": transito,
         })
 
-    except FalhaMapa as e:
-        return jsonify({"erro": str(e)}), 500
+    except requests.exceptions.HTTPError as e:
+        return jsonify({"erro": f"Erro na API HERE: {str(e)}"}), 500
     except Exception as e:
         return jsonify({"erro": f"Erro inesperado: {str(e)}"}), 500
-    finally:
-        if G is not None:
-            del G
-        gc.collect()
 
 
 if __name__ == "__main__":
