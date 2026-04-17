@@ -180,18 +180,21 @@ def baixar_dados_viarios(origem, destino, modo="completo"):
         """
         for url in OVERPASS_URLS:
             baixou = False
-            for tentativa in range(1, 3):
+            try:
+                dados = requisicao_json(url, data={"data": consulta}, timeout=55)
+                for el in dados.get("elements", []):
+                    elementos[el["id"]] = el
+                baixou = True
+            except requests.RequestException:
                 try:
-                    dados = requisicao_json(url, data={"data": consulta}, timeout=65)
+                    dados = requisicao_json(url, data={"data": consulta}, timeout=55)
                     for el in dados.get("elements", []):
                         elementos[el["id"]] = el
                     baixou = True
-                    break
                 except requests.RequestException:
-                    time.sleep(1.2 * tentativa)
+                    pass
             if baixou:
                 break
-        time.sleep(0.25)
 
     if not elementos:
         raise FalhaMapa("Não foi possível baixar dados viários.")
