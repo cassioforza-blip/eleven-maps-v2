@@ -3,6 +3,7 @@ import heapq
 import json
 import math
 import time
+import hashlib
 
 import folium
 import networkx as nx
@@ -10,6 +11,10 @@ import requests
 from flask import Flask, render_template, request, jsonify, send_from_directory
 
 app = Flask(__name__)
+
+# Cache simples em memória para dados OSM
+_osm_cache = {}
+_cache_max = 20
 
 HERE_API_KEY = "o1Sag5mVi2b4Y81hY9tXEuGggmUi8W_tX0uaetJFPEg"
 NOMINATIM_URL = "https://nominatim.openstreetmap.org/search"
@@ -178,21 +183,29 @@ def baixar_dados_viarios(origem, destino, modo="completo"):
         (._;>;);
         out body;
         """
+        # Chave de cache para este segmento
+        cache_key = hashlib.md5(consulta.encode()).hexdigest()
+        if cache_key in _osm_cache:
+            for el in _osm_cache[cache_key]:
+                elementos[el["id"]] = el
+            continue
+
         for url in OVERPASS_URLS:
             baixou = False
             try:
                 dados = requisicao_json(url, data={"data": consulta}, timeout=55)
-                for el in dados.get("elements", []):
+                els = dados.get("elements", [])
+                for el in els:
                     elementos[el["id"]] = el
+                # Salva no cache
+                if len(_osm_cache) >= _cache_max:
+                    _osm_cache.pop(next(iter(_osm_cache)))
+                _osm_cache[cache_key] = els
                 baixou = True
-            except requests.RequestException:
-                try:
-                    dados = requisicao_json(url, data={"data": consulta}, timeout=55)
-                    for el in dados.get("elements", []):
-                        elementos[el["id"]] = el
-                    baixou = True
-                except requests.RequestException:
-                    pass
+            except requests.RequestException as e:
+                if "429" in str(e):
+                    time.sleep(5)
+                continue
             if baixou:
                 break
 
