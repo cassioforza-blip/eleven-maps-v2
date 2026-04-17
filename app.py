@@ -90,9 +90,8 @@ def calcular_rota_here(lat1, lon1, lat2, lon2, modo="fast"):
         "transportMode": "car",
         "origin": f"{lat1},{lon1}",
         "destination": f"{lat2},{lon2}",
-        "return": "polyline,summary,instructions",
-        "routingMode": modo,  # "fast" ou "short"
-        "spans": "names",
+        "return": "polyline,summary",
+        "routingMode": modo,
     }
     r = requests.get(url, params=params, timeout=15)
     r.raise_for_status()
