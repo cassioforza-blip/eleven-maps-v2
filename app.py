@@ -153,15 +153,15 @@ def buscar_transito_here(lat1, lon1, lat2, lon2):
 def baixar_dados_viarios(origem, destino, modo="completo"):
     tipos = TIPOS_PRINCIPAIS if modo == "principais" else TODOS_TIPOS
     dist = haversine(origem[0], origem[1], destino[0], destino[1])
-    raio_seg = 4000
+    raio_seg = 3000
     if dist <= raio_seg * 1.4:
         lat_c = (origem[0] + destino[0]) / 2
         lon_c = (origem[1] + destino[1]) / 2
-        raio = max(2500, int(dist * 0.75))
+        raio = max(2000, int(dist * 0.65))
         raio = min(raio, raio_seg)
         segmentos = [(lat_c, lon_c, raio)]
     else:
-        n = min(int(dist / raio_seg) + 2, 5)
+        n = min(int(dist / raio_seg) + 2, 4)
         segmentos = []
         for i in range(n):
             t = i / (n - 1)
