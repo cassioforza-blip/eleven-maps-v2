@@ -19,20 +19,10 @@
       --muted:#6b7280;--card:#181c28;
       --green:#4ade80;--yellow:#facc15;--red:#f87171;
     }
-    /* DAY MODE */
-    body.day-mode{
-      --bg:#f0f4f8;--surface:#ffffff;--border:#dde3ed;
-      --text:#1a1d2e;--muted:#6b7280;--card:#f8fafc;
-    }
-
+    body.day-mode{--bg:#f0f4f8;--surface:#ffffff;--border:#dde3ed;--text:#1a1d2e;--muted:#6b7280;--card:#f8fafc;}
     html,body{height:100%;font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);overflow:hidden;}
 
-    /* HEADER */
-    header{
-      height:56px;padding:0 1.2rem;display:flex;align-items:center;gap:0.8rem;
-      border-bottom:1px solid var(--border);background:var(--surface);
-      position:relative;z-index:100;flex-shrink:0;
-    }
+    header{height:56px;padding:0 1.2rem;display:flex;align-items:center;gap:0.8rem;border-bottom:1px solid var(--border);background:var(--surface);position:relative;z-index:100;flex-shrink:0;}
     .logo{width:32px;height:32px;background:linear-gradient(135deg,var(--accent),var(--accent2));border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;}
     header h1{font-family:'Syne',sans-serif;font-weight:800;font-size:1.2rem;letter-spacing:-0.5px;}
     header h1 span{background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
@@ -41,56 +31,60 @@
     .icon-btn:hover,.icon-btn.active{background:var(--accent);color:#fff;border-color:var(--accent);}
     .badge-v2{font-size:0.65rem;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--accent);border:1px solid var(--accent);padding:2px 8px;border-radius:20px;opacity:0.8;}
 
-    /* LAYOUT */
     .app-body{display:flex;height:calc(100vh - 56px);}
 
-    /* SIDEBAR */
-    .sidebar{
-      width:340px;min-width:340px;background:var(--surface);border-right:1px solid var(--border);
-      display:flex;flex-direction:column;overflow-y:auto;transition:transform 0.3s;
-    }
+    .sidebar{width:340px;min-width:340px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto;transition:transform 0.3s;}
     .sidebar.hidden{transform:translateX(-100%);}
-    .sidebar-inner{padding:1.4rem 1.2rem;display:flex;flex-direction:column;gap:1.2rem;}
+    .sidebar-inner{padding:1.2rem;display:flex;flex-direction:column;gap:1.1rem;}
 
     .section-label{font-family:'Syne',sans-serif;font-size:0.68rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted);}
 
-    /* FIELDS */
+    /* ORIGEM QUICKBAR */
+    .origem-quick{display:flex;gap:6px;margin-bottom:2px;}
+    .quick-btn{flex:1;padding:0.5rem 6px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--muted);font-family:'DM Sans',sans-serif;font-size:0.72rem;cursor:pointer;transition:all 0.2s;display:flex;align-items:center;justify-content:center;gap:4px;text-align:center;}
+    .quick-btn:hover,.quick-btn.active{background:var(--accent);color:#fff;border-color:var(--accent);}
+    .quick-btn.home-btn.saved{background:rgba(72,191,227,0.15);color:var(--accent2);border-color:var(--accent2);}
+
     .field-group{display:flex;flex-direction:column;gap:0.45rem;position:relative;}
     .field-label{font-size:0.75rem;font-weight:500;color:var(--muted);display:flex;align-items:center;gap:6px;}
+    .field-row{display:flex;gap:6px;align-items:center;}
     .dot-o{width:9px;height:9px;border-radius:50%;background:var(--accent2);display:inline-block;}
     .dot-d{width:9px;height:9px;border-radius:50%;background:var(--accent);display:inline-block;}
-    input[type="text"]{
-      background:var(--card);border:1px solid var(--border);border-radius:10px;
-      padding:0.7rem 1rem;color:var(--text);font-family:'DM Sans',sans-serif;
-      font-size:0.88rem;outline:none;transition:border-color 0.2s,box-shadow 0.2s;width:100%;
-    }
+    input[type="text"]{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:0.7rem 1rem;color:var(--text);font-family:'DM Sans',sans-serif;font-size:0.88rem;outline:none;transition:border-color 0.2s,box-shadow 0.2s;width:100%;}
     input[type="text"]:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(108,99,255,0.15);}
     input[type="text"]::placeholder{color:var(--muted);}
 
-    /* AUTOCOMPLETE */
+    /* SAVE HOME */
+    .save-home-row{display:flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:0.6rem 0.9rem;font-size:0.78rem;color:var(--muted);}
+    .save-home-row span{flex:1;}
+    .save-home-btn{background:var(--accent);color:#fff;border:none;border-radius:7px;padding:4px 12px;font-family:'Syne',sans-serif;font-size:0.7rem;font-weight:700;cursor:pointer;white-space:nowrap;}
+
+    /* GPS SPEED WIDGET */
+    .gps-widget{display:none;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:0.9rem 1rem;align-items:center;gap:12px;}
+    .gps-widget.show{display:flex;}
+    .gps-speed-val{font-family:'Syne',sans-serif;font-size:2rem;font-weight:800;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;line-height:1;min-width:56px;}
+    .gps-speed-unit{font-size:0.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:1px;}
+    .gps-accuracy{font-size:0.7rem;color:var(--muted);margin-top:2px;}
+    .gps-dot{width:8px;height:8px;border-radius:50%;background:var(--green);animation:pulse 1.5s infinite;flex-shrink:0;}
+    @keyframes pulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:0.5;transform:scale(1.3);}}
+
+    /* SUGGESTIONS */
     .suggestions{position:absolute;top:100%;left:0;right:0;z-index:500;background:var(--card);border:1px solid var(--border);border-radius:10px;margin-top:4px;overflow:hidden;box-shadow:0 8px 24px rgba(0,0,0,0.4);display:none;}
     .suggestions.open{display:block;}
     .sug-item{padding:0.6rem 1rem;font-size:0.8rem;color:var(--text);cursor:pointer;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;transition:background 0.15s;background:var(--card);}
     .sug-item:last-child{border-bottom:none;}
     .sug-item:hover{background:rgba(108,99,255,0.12);}
 
-    /* ROUTE MODE TOGGLE */
+    /* ROUTE MODE */
     .route-mode{display:flex;gap:6px;}
-    .mode-btn{flex:1;padding:0.6rem;border-radius:9px;border:1px solid var(--border);background:var(--card);color:var(--muted);font-family:'Syne',sans-serif;font-size:0.72rem;font-weight:700;cursor:pointer;letter-spacing:0.5px;transition:all 0.2s;text-align:center;}
+    .mode-btn{flex:1;padding:0.6rem;border-radius:9px;border:1px solid var(--border);background:var(--card);color:var(--muted);font-family:'Syne',sans-serif;font-size:0.72rem;font-weight:700;cursor:pointer;transition:all 0.2s;text-align:center;}
     .mode-btn.active{background:var(--accent);color:#fff;border-color:var(--accent);}
 
-    /* BUTTON */
-    .btn-calc{
-      background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;border:none;
-      border-radius:10px;padding:0.85rem;font-family:'Syne',sans-serif;font-size:0.92rem;
-      font-weight:700;cursor:pointer;transition:opacity 0.2s,transform 0.1s;
-      display:flex;align-items:center;justify-content:center;gap:8px;letter-spacing:0.5px;
-    }
+    .btn-calc{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;border:none;border-radius:10px;padding:0.85rem;font-family:'Syne',sans-serif;font-size:0.92rem;font-weight:700;cursor:pointer;transition:opacity 0.2s,transform 0.1s;display:flex;align-items:center;justify-content:center;gap:8px;}
     .btn-calc:hover{opacity:0.9;}
     .btn-calc:active{transform:scale(0.98);}
     .btn-calc:disabled{opacity:0.4;cursor:not-allowed;}
 
-    /* LOADING */
     .loading-box{display:none;flex-direction:column;gap:0.55rem;}
     .loading-box.show{display:flex;}
     .load-step{font-size:0.78rem;color:var(--muted);display:flex;align-items:center;gap:8px;opacity:0.4;transition:opacity 0.3s;}
@@ -99,39 +93,33 @@
     .spinner{width:13px;height:13px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;}
     @keyframes spin{to{transform:rotate(360deg);}}
 
-    /* ERROR */
     .error-box{display:none;background:rgba(248,113,113,0.08);border:1px solid rgba(248,113,113,0.25);border-radius:10px;padding:0.8rem 1rem;font-size:0.82rem;color:#fca5a5;}
     .error-box.show{display:block;}
 
-    /* TRAFFIC */
     .traffic-badge{display:none;align-items:center;gap:8px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:0.7rem 1rem;font-size:0.8rem;}
     .traffic-badge.show{display:flex;}
     .traffic-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
 
-    /* STATS */
     .stats{display:grid;grid-template-columns:1fr 1fr;gap:0.65rem;}
     .stat-card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:0.8rem 0.9rem;}
     .stat-value{font-family:'Syne',sans-serif;font-size:1.3rem;font-weight:800;line-height:1;}
     .stat-label{font-size:0.66rem;color:var(--muted);margin-top:3px;text-transform:uppercase;letter-spacing:0.5px;}
     .stat-card.a .stat-value{color:var(--accent);}
     .stat-card.b .stat-value{color:var(--accent2);}
+    .stat-card.g .stat-value{color:var(--green);}
 
-    /* ROUTE NAMES */
     .route-names{display:none;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:0.8rem 1rem;font-size:0.78rem;line-height:1.7;}
     .route-names.show{display:block;}
     .rn-label{color:var(--muted);font-size:0.67rem;text-transform:uppercase;letter-spacing:1px;}
 
-    /* DIVIDER */
     .divider{height:1px;background:var(--border);}
     .about{font-size:0.72rem;color:var(--muted);line-height:1.6;}
     .about strong{color:var(--accent2);}
 
-    /* INSTALL BANNER */
     .install-banner{display:none;background:linear-gradient(135deg,rgba(108,99,255,0.15),rgba(72,191,227,0.1));border:1px solid rgba(108,99,255,0.3);border-radius:10px;padding:0.8rem 1rem;font-size:0.78rem;align-items:center;gap:10px;}
     .install-banner.show{display:flex;}
     .install-btn{margin-left:auto;background:var(--accent);color:#fff;border:none;border-radius:7px;padding:5px 12px;font-family:'Syne',sans-serif;font-size:0.72rem;font-weight:700;cursor:pointer;white-space:nowrap;}
 
-    /* MAP */
     .map-area{flex:1;position:relative;background:var(--bg);}
     .map-placeholder{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1rem;color:var(--muted);}
     .map-placeholder svg{opacity:0.08;}
@@ -139,10 +127,8 @@
     #map-container{width:100%;height:100%;}
     #map-container iframe{width:100%;height:100%;border:none;}
 
-    /* CLOCK */
     #clock{font-family:'Syne',sans-serif;font-size:0.8rem;color:var(--muted);letter-spacing:1px;}
 
-    /* MOBILE */
     @media(max-width:768px){
       .sidebar{position:absolute;z-index:200;height:100%;box-shadow:4px 0 20px rgba(0,0,0,0.4);}
       .sidebar.hidden{display:none;}
@@ -159,9 +145,10 @@
   <div class="header-actions">
     <span id="clock"></span>
     <div class="badge-v2">v2</div>
-    <button class="icon-btn toggle-sidebar" id="toggle-sidebar-btn" onclick="toggleSidebar()" title="Menu">☰</button>
+    <button class="icon-btn toggle-sidebar" onclick="toggleSidebar()" title="Menu">☰</button>
     <button class="icon-btn" id="theme-btn" onclick="toggleTheme()" title="Tema">🌙</button>
-    <button class="icon-btn" id="install-btn-header" style="display:none" onclick="installPWA()" title="Instalar app">📲</button>
+    <button class="icon-btn" id="gps-toggle-btn" onclick="toggleGPS()" title="GPS">📍</button>
+    <button class="icon-btn" id="install-btn-header" style="display:none" onclick="installPWA()" title="Instalar">📲</button>
   </div>
 </header>
 
@@ -170,29 +157,58 @@
     <div class="sidebar-inner">
 
       <div class="install-banner" id="install-banner">
-        📲 Instale o Eleven Maps no seu celular!
+        📲 Instale o Eleven Maps!
         <button class="install-btn" onclick="installPWA()">Instalar</button>
+      </div>
+
+      <!-- GPS SPEED WIDGET -->
+      <div class="gps-widget" id="gps-widget">
+        <div class="gps-dot" id="gps-dot"></div>
+        <div>
+          <div style="display:flex;align-items:baseline;gap:4px;">
+            <div class="gps-speed-val" id="gps-speed-val">0</div>
+            <div class="gps-speed-unit">km/h</div>
+          </div>
+          <div class="gps-accuracy" id="gps-accuracy">Aguardando GPS...</div>
+        </div>
+        <div style="margin-left:auto;text-align:right;">
+          <div style="font-size:0.65rem;color:var(--muted);letter-spacing:1px;text-transform:uppercase;">Velocidade</div>
+          <div style="font-size:0.65rem;color:var(--muted);" id="gps-coords">—</div>
+        </div>
       </div>
 
       <p class="section-label">Calcular Rota</p>
 
+      <!-- ORIGEM -->
       <div class="field-group">
         <label class="field-label"><span class="dot-o"></span> Origem</label>
+        <div class="origem-quick">
+          <button class="quick-btn" id="btn-gps-origin" onclick="usarLocalizacaoAtual()" title="Minha localização">📍 Minha localização</button>
+          <button class="quick-btn home-btn" id="btn-home-origin" onclick="usarCasa()" title="Casa">🏠 Casa</button>
+        </div>
         <input type="text" id="origem" placeholder="Restaurante, endereço, local..." autocomplete="off" oninput="onInput('origem')" onblur="hideSug('origem')"/>
         <div class="suggestions" id="sug-origem"></div>
       </div>
 
+      <!-- SALVAR CASA -->
+      <div class="save-home-row" id="save-home-row">
+        <span id="save-home-label">🏠 Endereço de casa não salvo</span>
+        <button class="save-home-btn" onclick="salvarCasa()">Salvar</button>
+      </div>
+
+      <!-- DESTINO -->
       <div class="field-group">
         <label class="field-label"><span class="dot-d"></span> Destino</label>
         <input type="text" id="destino" placeholder="Shopping, hospital, bairro..." autocomplete="off" oninput="onInput('destino')" onblur="hideSug('destino')"/>
         <div class="suggestions" id="sug-destino"></div>
       </div>
 
+      <!-- TIPO DE ROTA -->
       <div>
         <label class="field-label" style="margin-bottom:8px;">🛣️ Tipo de Rota</label>
         <div class="route-mode">
-          <button class="mode-btn active" id="mode-completo" onclick="setModo('completo')">🏘️ Todos bairros</button>
-          <button class="mode-btn" id="mode-principais" onclick="setModo('principais')">🛣️ Vias principais</button>
+          <button class="mode-btn active" id="mode-completo" onclick="setModo('completo')">🏘️ Mais rápida</button>
+          <button class="mode-btn" id="mode-principais" onclick="setModo('principais')">🛣️ Mais curta</button>
         </div>
       </div>
 
@@ -218,16 +234,15 @@
 
       <div class="stats" id="stats" style="display:none">
         <div class="stat-card a"><div class="stat-value" id="s-dist">—</div><div class="stat-label">Distância km</div></div>
-        <div class="stat-card"><div class="stat-value" id="s-dur">—</div><div class="stat-label">Duração min</div></div>
+        <div class="stat-card g"><div class="stat-value" id="s-dur">—</div><div class="stat-label">Duração min</div></div>
         <div class="stat-card b"><div class="stat-value" id="s-pts">—</div><div class="stat-label">Pontos rota</div></div>
         <div class="stat-card"><div class="stat-value" id="s-api">HERE</div><div class="stat-label">API Rotas</div></div>
       </div>
 
       <div class="divider"></div>
       <p class="about">
-        <strong>Eleven Maps v2</strong> — Algoritmo <strong>A*</strong> com dados reais do
-        <strong>OpenStreetMap</strong>. Trânsito via <strong>HERE Maps</strong>.
-        Cobertura: Estado de São Paulo.
+        <strong>Eleven Maps v2</strong> — Rotas via <strong>HERE Maps</strong>.
+        GPS em tempo real. Cobertura: Estado de São Paulo.
       </p>
     </div>
   </aside>
@@ -262,11 +277,10 @@
     document.body.classList.toggle('day-mode', !isDark);
     document.getElementById('theme-btn').textContent = isDark ? '🌙' : '☀️';
   }
-  // Auto theme by hour
   var hour = new Date().getHours();
   if (hour >= 6 && hour < 18) toggleTheme();
 
-  // ── SIDEBAR MOBILE ──
+  // ── SIDEBAR ──
   function toggleSidebar() {
     document.getElementById('sidebar').classList.toggle('hidden');
   }
@@ -277,6 +291,138 @@
     modoRota = modo;
     document.getElementById('mode-completo').classList.toggle('active', modo === 'completo');
     document.getElementById('mode-principais').classList.toggle('active', modo === 'principais');
+  }
+
+  // ── CASA (localStorage) ──
+  var endCasa = localStorage.getItem('eleven_casa') || '';
+  function atualizarUICasa() {
+    var label = document.getElementById('save-home-label');
+    var btn = document.getElementById('btn-home-origin');
+    if (endCasa) {
+      label.textContent = '🏠 ' + endCasa.substring(0, 35) + (endCasa.length > 35 ? '...' : '');
+      btn.classList.add('saved');
+      btn.title = endCasa;
+    } else {
+      label.textContent = '🏠 Endereço de casa não salvo';
+      btn.classList.remove('saved');
+    }
+  }
+  atualizarUICasa();
+
+  function salvarCasa() {
+    var val = document.getElementById('origem').value.trim();
+    if (!val) { alert('Digite um endereço no campo de Origem primeiro!'); return; }
+    endCasa = val;
+    localStorage.setItem('eleven_casa', endCasa);
+    atualizarUICasa();
+    showToast('🏠 Casa salva com sucesso!');
+  }
+
+  function usarCasa() {
+    if (!endCasa) { showToast('⚠️ Salve um endereço de casa primeiro!'); return; }
+    document.getElementById('origem').value = endCasa;
+    document.getElementById('btn-home-origin').classList.add('active');
+    setTimeout(() => document.getElementById('btn-home-origin').classList.remove('active'), 1000);
+  }
+
+  // ── TOAST ──
+  function showToast(msg) {
+    var t = document.createElement('div');
+    t.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:var(--surface);border:1px solid var(--border);color:var(--text);padding:10px 20px;border-radius:20px;font-size:0.82rem;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,0.4);font-family:DM Sans,sans-serif;';
+    t.textContent = msg;
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 3000);
+  }
+
+  // ── GPS ──
+  var gpsWatchId = null;
+  var gpsAtivo = false;
+  var gpsCoords = null;
+
+  function toggleGPS() {
+    if (gpsAtivo) {
+      pararGPS();
+    } else {
+      iniciarGPS();
+    }
+  }
+
+  function iniciarGPS() {
+    if (!navigator.geolocation) {
+      showToast('GPS não disponível neste dispositivo.');
+      return;
+    }
+    gpsAtivo = true;
+    document.getElementById('gps-toggle-btn').classList.add('active');
+    document.getElementById('gps-widget').classList.add('show');
+    document.getElementById('gps-accuracy').textContent = 'Obtendo sinal GPS...';
+
+    gpsWatchId = navigator.geolocation.watchPosition(
+      function(pos) {
+        gpsCoords = { lat: pos.coords.latitude, lon: pos.coords.longitude };
+        var speed = pos.coords.speed;
+        var kmh = speed !== null && speed >= 0 ? Math.round(speed * 3.6) : 0;
+        document.getElementById('gps-speed-val').textContent = kmh;
+        document.getElementById('gps-accuracy').textContent = 'Precisão: ±' + Math.round(pos.coords.accuracy) + 'm';
+        document.getElementById('gps-coords').textContent = pos.coords.latitude.toFixed(5) + ', ' + pos.coords.longitude.toFixed(5);
+        document.getElementById('gps-dot').style.background = kmh > 0 ? 'var(--green)' : 'var(--accent2)';
+      },
+      function(err) {
+        document.getElementById('gps-accuracy').textContent = 'Erro: ' + err.message;
+        document.getElementById('gps-dot').style.background = 'var(--red)';
+      },
+      { enableHighAccuracy: true, maximumAge: 1000, timeout: 10000 }
+    );
+  }
+
+  function pararGPS() {
+    if (gpsWatchId !== null) {
+      navigator.geolocation.clearWatch(gpsWatchId);
+      gpsWatchId = null;
+    }
+    gpsAtivo = false;
+    gpsCoords = null;
+    document.getElementById('gps-toggle-btn').classList.remove('active');
+    document.getElementById('gps-widget').classList.remove('show');
+    document.getElementById('gps-speed-val').textContent = '0';
+  }
+
+  function usarLocalizacaoAtual() {
+    if (!navigator.geolocation) {
+      showToast('GPS não disponível neste dispositivo.');
+      return;
+    }
+    document.getElementById('btn-gps-origin').textContent = '⏳ Obtendo...';
+    navigator.geolocation.getCurrentPosition(
+      function(pos) {
+        var lat = pos.coords.latitude;
+        var lon = pos.coords.longitude;
+        // Geocodificação reversa via Nominatim
+        fetch('https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=' + lat + '&lon=' + lon, {
+          headers: { 'User-Agent': 'eleven-maps-v2/1.0' }
+        })
+        .then(r => r.json())
+        .then(data => {
+          var nome = data.display_name || (lat.toFixed(5) + ', ' + lon.toFixed(5));
+          var partes = nome.split(',');
+          var nomeCurto = partes.slice(0,3).join(',').trim();
+          document.getElementById('origem').value = nomeCurto;
+          document.getElementById('btn-gps-origin').textContent = '📍 Minha localização';
+          showToast('📍 Localização obtida!');
+          // Salva coords para uso direto
+          gpsCoords = { lat, lon };
+        })
+        .catch(() => {
+          document.getElementById('origem').value = lat.toFixed(6) + ',' + lon.toFixed(6);
+          document.getElementById('btn-gps-origin').textContent = '📍 Minha localização';
+        });
+      },
+      function(err) {
+        document.getElementById('btn-gps-origin').textContent = '📍 Minha localização';
+        showToast('⚠️ Não foi possível obter localização: ' + err.message);
+      },
+      { enableHighAccuracy: true, timeout: 15000 }
+    );
   }
 
   // ── AUTOCOMPLETE ──
@@ -312,9 +458,9 @@
     }, 150);
   }
 
-  // ── LOADING STEPS ──
+  // ── LOADING ──
   function setSteps(loading, n) {
-    var labels = ['Geocodificando locais...','Baixando mapa...','Buscando trânsito...','Executando A*...','Gerando mapa...'];
+    var labels = ['Geocodificando locais...','Calculando rota HERE...','Buscando trânsito...','Gerando mapa...'];
     loading.innerHTML = labels.map((lb, i) => {
       var idx = i + 1;
       if (idx < n) return `<div class="load-step done"><span style="color:var(--green)">✓</span> ${lb}</div>`;
@@ -344,7 +490,7 @@
     document.getElementById('placeholder').style.display = 'flex';
 
     var step = 1; setSteps(loading, step);
-    var timer = setInterval(() => { step = Math.min(step + 1, 5); setSteps(loading, step); }, 3000);
+    var timer = setInterval(() => { step = Math.min(step + 1, 4); setSteps(loading, step); }, 2500);
 
     try {
       var resp = await fetch('/rota', {
@@ -356,43 +502,33 @@
       var dados = await resp.json();
       if (!resp.ok) { mostrarErro(dados.erro || 'Erro ao calcular.'); return; }
 
-      loading.innerHTML = ['Geocodificação','Mapa carregado','Trânsito obtido','A* executado','Mapa gerado']
+      loading.innerHTML = ['Geocodificação concluída','Rota calculada','Trânsito obtido','Mapa gerado']
         .map(lb => `<div class="load-step done"><span style="color:var(--green)">✓</span> ${lb}</div>`).join('');
 
-      // Map
       var container = document.getElementById('map-container');
       container.style.display = 'block';
       document.getElementById('placeholder').style.display = 'none';
       container.innerHTML = dados.mapa_html;
 
-      // Stats
       document.getElementById('s-dist').textContent = dados.distancia_km;
       document.getElementById('s-dur').textContent = dados.duracao_min || '—';
       document.getElementById('s-pts').textContent = dados.pontos_rota || '—';
-      document.getElementById('s-api').textContent = 'HERE';
       document.getElementById('stats').style.display = 'grid';
 
-      // Route names
       document.getElementById('rn-origem').textContent = dados.nome_origem;
       document.getElementById('rn-destino').textContent = dados.nome_destino;
       document.getElementById('route-names').className = 'route-names show';
 
-      // Traffic
       if (dados.transito) {
         var t = dados.transito;
-        var dot = document.getElementById('traffic-dot');
-        var txt = document.getElementById('traffic-text');
-        dot.style.background = t.cor;
-        dot.style.boxShadow = `0 0 8px ${t.cor}`;
-        var vel = t.velocidade_media > 0 ? ` · ${t.velocidade_media} km/h` : '';
-        txt.innerHTML = `🚦 Trânsito <b>${t.status}</b>${vel}`;
+        document.getElementById('traffic-dot').style.background = t.cor;
+        document.getElementById('traffic-dot').style.boxShadow = '0 0 8px ' + t.cor;
+        var vel = t.velocidade_media > 0 ? ' · ' + t.velocidade_media + ' km/h' : '';
+        document.getElementById('traffic-text').innerHTML = '🚦 Trânsito <b>' + t.status + '</b>' + vel;
         document.getElementById('traffic-badge').className = 'traffic-badge show';
       }
 
-      // Close sidebar on mobile
-      if (window.innerWidth <= 768) {
-        document.getElementById('sidebar').classList.add('hidden');
-      }
+      if (window.innerWidth <= 768) document.getElementById('sidebar').classList.add('hidden');
 
     } catch(e) {
       clearInterval(timer);
@@ -409,7 +545,7 @@
     document.getElementById('loading').className = 'loading-box';
   }
 
-  // ── PWA INSTALL ──
+  // ── PWA ──
   var deferredPrompt = null;
   window.addEventListener('beforeinstallprompt', e => {
     e.preventDefault();
