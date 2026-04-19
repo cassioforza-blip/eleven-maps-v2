@@ -272,9 +272,13 @@
       <!-- TIPO ROTA -->
       <div>
         <label class="flabel" style="margin-bottom:7px;">🛣️ Tipo de Rota</label>
-        <div class="rmode">
+        <div class="rmode" style="margin-bottom:6px;">
           <button class="rmbtn active" id="rm-fast" onclick="setModo('fast')">⚡ Mais rápida</button>
           <button class="rmbtn" id="rm-short" onclick="setModo('short')">📏 Mais curta</button>
+        </div>
+        <div class="rmode">
+          <button class="rmbtn active" id="rm-completo" onclick="setTipoVia('completo')">🏘️ Via bairros</button>
+          <button class="rmbtn" id="rm-principais" onclick="setTipoVia('principais')">🛣️ Vias principais</button>
         </div>
       </div>
 
@@ -304,9 +308,29 @@
 
       <div class="stats" id="stats" style="display:none">
         <div class="scard a"><div class="sval" id="s-dist">—</div><div class="slbl">Distância km</div></div>
-        <div class="scard g"><div class="sval" id="s-dur">—</div><div class="slbl">Duração min</div></div>
-        <div class="scard b"><div class="sval" id="s-pts">—</div><div class="slbl">Pontos rota</div></div>
-        <div class="scard"><div class="sval">HERE</div><div class="slbl">API Rotas</div></div>
+        <div class="scard g"><div class="sval" id="s-dur-total">—</div><div class="slbl">Tempo total min</div></div>
+        <div class="scard b"><div class="sval" id="s-dur-trans">—</div><div class="slbl">c/ Trânsito min</div></div>
+        <div class="scard"><div class="sval" id="s-semaf">—</div><div class="slbl">🚦 Semáforos</div></div>
+      </div>
+      <!-- BREAKDOWN -->
+      <div id="time-breakdown" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:0.75rem 0.9rem;font-size:0.76rem;">
+        <div style="font-family:Syne,sans-serif;font-size:0.65rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:8px;">⏱ Detalhamento do Tempo</div>
+        <div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border);">
+          <span style="color:var(--muted);">Tempo base (sem trânsito)</span>
+          <span style="font-weight:600;" id="tb-base">—</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border);">
+          <span style="color:var(--muted);">Atraso por trânsito</span>
+          <span style="font-weight:600;color:var(--red);" id="tb-transito">—</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border);">
+          <span style="color:var(--muted);">🚦 Atraso semáforos</span>
+          <span style="font-weight:600;color:var(--yellow);" id="tb-semaf">—</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:5px 0 0;font-weight:700;">
+          <span>Tempo total estimado</span>
+          <span style="color:var(--accent);" id="tb-total">—</span>
+        </div>
       </div>
 
       <div class="divider"></div>
@@ -361,6 +385,7 @@ var navIndex = 0, navInterval = null, navPlaying = false;
 var modo3D = false;
 var gpsWatch = null, gpsAtivo = false;
 var modoRota = 'fast';
+var tipoVia = 'completo';
 var endCasa = localStorage.getItem('eleven_casa') || '';
 
 // ── CLOCK ──
@@ -386,6 +411,11 @@ function setModo(m){
   modoRota=m;
   document.getElementById('rm-fast').classList.toggle('active',m==='fast');
   document.getElementById('rm-short').classList.toggle('active',m==='short');
+}
+function setTipoVia(t){
+  tipoVia=t;
+  document.getElementById('rm-completo').classList.toggle('active',t==='completo');
+  document.getElementById('rm-principais').classList.toggle('active',t==='principais');
 }
 
 // ── CASA ──
@@ -508,7 +538,7 @@ async function calcularRota(){
   try{
     var resp=await fetch('/rota',{
       method:'POST', headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({origem,destino,modo_rota:modoRota})
+      body:JSON.stringify({origem,destino,modo_rota:modoRota,tipo_via:tipoVia})
     });
     clearInterval(timer);
     var d=await resp.json();
@@ -527,9 +557,20 @@ async function calcularRota(){
 
     // Stats
     document.getElementById('s-dist').textContent=d.distancia_km;
-    document.getElementById('s-dur').textContent=d.duracao_min||'—';
-    document.getElementById('s-pts').textContent=d.pontos_rota||'—';
+    document.getElementById('s-dur-total').textContent=d.duracao_total_min||d.duracao_min||'—';
+    document.getElementById('s-dur-trans').textContent=d.duracao_transito_min||d.duracao_min||'—';
+    document.getElementById('s-semaf').textContent=d.semaforos?d.semaforos.semaforos:'—';
     document.getElementById('stats').style.display='grid';
+
+    // Time breakdown
+    if(d.semaforos){
+      var atrasoTransito=(d.duracao_transito_min||d.duracao_min)-d.duracao_min;
+      document.getElementById('tb-base').textContent=d.duracao_min+' min';
+      document.getElementById('tb-transito').textContent='+'+(atrasoTransito>0?atrasoTransito:0)+' min';
+      document.getElementById('tb-semaf').textContent='+'+d.semaforos.atraso_min+' min ('+d.semaforos.semaforos+' semáforos)';
+      document.getElementById('tb-total').textContent=d.duracao_total_min+' min';
+      document.getElementById('time-breakdown').style.display='block';
+    }
     document.getElementById('rn-o').textContent=d.nome_origem;
     document.getElementById('rn-d').textContent=d.nome_destino;
     document.getElementById('rnames').className='rnames show';
@@ -582,7 +623,7 @@ function abrirNavegacao(){
   document.getElementById('nav-play-btn').textContent='▶ Iniciar';
   document.getElementById('nav-pbar').style.width='0%';
   document.getElementById('nav-dist-txt').textContent='Rota: '+document.getElementById('s-dist').textContent+' km';
-  document.getElementById('nav-dur-txt').textContent='Duração estimada: '+document.getElementById('s-dur').textContent+' min';
+  document.getElementById('nav-dur-txt').textContent='Duração estimada: '+(document.getElementById('s-dur-total').textContent||'—')+' min';
 
   // Init nav map
   if(!navMap){

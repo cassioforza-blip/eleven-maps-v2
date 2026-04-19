@@ -76,19 +76,63 @@ def sugerir_locais(texto):
         return []
 
 
-def calcular_rota_here(lat1, lon1, lat2, lon2, modo="fast"):
+def calcular_rota_here(lat1, lon1, lat2, lon2, modo="fast", tipo="completo"):
     url = "https://router.hereapi.com/v8/routes"
+
+    # Tipo de via: principais = motorway/trunk/primary, bairros = tudo
+    avoid = ""
+    if tipo == "principais":
+        # Evita vias locais e residenciais
+        avoid = "zoneCategory:residential"
+
     params = {
         "apiKey": HERE_API_KEY,
         "transportMode": "car",
         "origin": f"{lat1},{lon1}",
         "destination": f"{lat2},{lon2}",
-        "return": "polyline,summary",
+        "return": "polyline,summary,typedInstructions",
         "routingMode": modo,
+        "trafficMode": "enabled",
+        "departureTime": "now",
     }
     r = requests.get(url, params=params, timeout=15)
     r.raise_for_status()
     return r.json()
+
+
+def estimar_semaforos(distancia_km, duracao_base_s, velocidade_media_kmh):
+    """
+    Estima número de semáforos e atraso com base em:
+    - Densidade média de semáforos em SP: ~3 por km em vias urbanas
+    - Ciclo médio de semáforo em SP: 90s (dados CET-SP)
+    - Probabilidade de pegar vermelho: ~55%
+    - Tempo médio de espera por semáforo: ~25s
+    """
+    if distancia_km <= 0:
+        return {"semaforos": 0, "atraso_s": 0, "duracao_ajustada_min": round(duracao_base_s / 60)}
+
+    # Densidade de semáforos varia por tipo de via
+    if velocidade_media_kmh > 60:
+        densidade = 0.5  # vias expressas: poucos semáforos
+    elif velocidade_media_kmh > 40:
+        densidade = 2.0  # vias arteriais
+    else:
+        densidade = 3.5  # vias locais/bairros
+
+    n_semaforos = round(distancia_km * densidade)
+    prob_vermelho = 0.55
+    espera_media_s = 28  # dados CET-SP 2023
+
+    atraso_total_s = round(n_semaforos * prob_vermelho * espera_media_s)
+    duracao_ajustada_s = duracao_base_s + atraso_total_s
+    duracao_ajustada_min = max(1, round(duracao_ajustada_s / 60))
+
+    return {
+        "semaforos": n_semaforos,
+        "atraso_s": atraso_total_s,
+        "duracao_ajustada_min": duracao_ajustada_min,
+        "atraso_min": round(atraso_total_s / 60),
+    }
 
 
 def buscar_transito_here(lat1, lon1, lat2, lon2):
@@ -170,11 +214,12 @@ def calcular_rota():
         coord_destino = (res_destino[0], res_destino[1])
         nome_destino = res_destino[2]
 
-        here_modo = "short" if modo_rota == "principais" else "fast"
+        tipo_via = dados.get("tipo_via", "completo")  # "principais" ou "bairros"
+        here_modo = "short" if modo_rota == "short" else "fast"
         rota_here = calcular_rota_here(
             coord_origem[0], coord_origem[1],
             coord_destino[0], coord_destino[1],
-            here_modo
+            here_modo, tipo_via
         )
 
         coords_rota = extrair_coords_rota(rota_here)
@@ -192,16 +237,35 @@ def calcular_rota():
             coord_destino[0], coord_destino[1]
         )
 
+        # Calcula velocidade média
+        vel_media = round((distancia_km / max(duracao_min, 1)) * 60, 1) if duracao_min > 0 else 40
+
+        # Ajuste de duração com trânsito real
+        fator_transito = 1.0
+        if transito["status"] == "congestionado":
+            fator_transito = 1.6
+        elif transito["status"] == "moderado":
+            fator_transito = 1.25
+        duracao_com_transito = round(duracao_min * fator_transito)
+
+        # Estimativa de semáforos
+        semaforos = estimar_semaforos(distancia_km, duracao_min * 60, vel_media)
+        duracao_total = duracao_com_transito + semaforos["atraso_min"]
+
         return jsonify({
             "coords_rota": coords_rota,
             "distancia_km": distancia_km,
             "duracao_min": duracao_min,
+            "duracao_transito_min": duracao_com_transito,
+            "duracao_total_min": duracao_total,
+            "velocidade_media": vel_media,
             "pontos_rota": len(coords_rota),
             "nome_origem": nome_origem,
             "nome_destino": nome_destino,
             "coord_origem": list(coord_origem),
             "coord_destino": list(coord_destino),
             "transito": transito,
+            "semaforos": semaforos,
         })
 
     except requests.exceptions.HTTPError as e:
