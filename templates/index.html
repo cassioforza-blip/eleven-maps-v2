@@ -502,6 +502,7 @@ async function calcularRota(){
     }
 
     if(!rotaCoords.length){mostrarErro('Erro ao decodificar a rota.');clearInterval(timer);return;}
+    console.log('Rota decodificada:', rotaCoords.length, 'pontos. Primeiro:', rotaCoords[0], 'Último:', rotaCoords[rotaCoords.length-1]);
 
     // STEP 3: Traffic via HERE (browser)
     setSteps(3);
@@ -595,8 +596,12 @@ function desenharRota(geo,distKm){
   var iD=L.divIcon({className:'',html:'<div style="width:16px;height:16px;background:#6c63ff;border-radius:50%;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.25);"></div>',iconSize:[16,16],iconAnchor:[8,8]});
   mOrig=L.marker(coordOrig,{icon:iO}).bindPopup('<b>Origem</b><br>'+geo.origem.nome).addTo(leafMap);
   mDest=L.marker(coordDest,{icon:iD}).bindPopup('<b>Destino</b><br>'+geo.destino.nome).addTo(leafMap);
-  leafMap.fitBounds(mPolyline.getBounds(),{padding:[40,40]});
-  setTimeout(()=>leafMap.invalidateSize(),100);
+  var bounds = mPolyline.getBounds();
+  leafMap.invalidateSize();
+  setTimeout(function(){
+    leafMap.fitBounds(bounds, {padding:[60,60], maxZoom:15});
+    setTimeout(function(){ leafMap.invalidateSize(); }, 300);
+  }, 200);
 }
 
 // ── FLEXIBLE POLYLINE DECODER ──
@@ -617,7 +622,7 @@ function decodeFP(encoded){
       var r1=decodeUnsigned(encoded,idx);lat+=toSigned(r1[0]);idx=r1[1];
       var r2=decodeUnsigned(encoded,idx);lng+=toSigned(r2[0]);idx=r2[1];
       if(has3d){var r3=decodeUnsigned(encoded,idx);idx=r3[1];}
-      result.push([lat*mult,lng*mult]);
+      result.push([lat*mult,lng*mult]); // [lat, lon] format
     }
   }catch(e){console.error('Polyline decode error:',e);}
   return result;
