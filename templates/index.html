@@ -476,7 +476,6 @@ async function calcularRota(){
       destination:`${geo.destino.lat},${geo.destino.lon}`,
       return:'polyline,summary',
       routingMode:modoRota,
-      departureTime:'now',
     });
 
     var hereResp=await fetch(hereUrl);
