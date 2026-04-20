@@ -612,26 +612,36 @@ function desenharRota(geo,distKm){
 }
 
 // ── FLEXIBLE POLYLINE DECODER ──
-function decodeFP(encoded){
+function decodeFP(encoded) {
+  // HERE Flexible Polyline - official decoding table
+  var DT = [62,-1,-1,52,53,54,55,56,57,58,59,60,61,-1,-1,-1,-1,-1,-1,-1,
+    0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,
+    -1,-1,-1,-1,63,-1,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,
+    43,44,45,46,47,48,49,50,51];
+  function dc(c){return DT[c.charCodeAt(0)-45];}
+  function du(enc,i){
+    var r=0,s=0,v;
+    do{v=dc(enc[i++]);r|=(v&0x1f)<<s;s+=5;}while(v&0x20);
+    return[r,i];
+  }
+  function ts(v){return(v&1)?~(v>>1):(v>>1);}
   var result=[];
   try{
-    var precision=(encoded.charCodeAt(1)-63)&0x0f;
-    var mult=Math.pow(10,-precision);
-    var has3d=((encoded.charCodeAt(1)-63)>>4)>0;
-    var idx=2,lat=0,lng=0;
-    function decodeUnsigned(enc,i){
-      var r=0,s=0,b;
-      do{b=enc.charCodeAt(i++)-63;r|=(b&0x1f)<<s;s+=5;}while(b>=0x20);
-      return[r,i];
-    }
-    function toSigned(v){return(v&1)?~(v>>1):(v>>1);}
+    var r0=du(encoded,0); // version
+    var r1=du(encoded,r0[1]); // header
+    var hv=r1[0];
+    var precision=hv&15;
+    var has3d=((hv>>4)&7)>0;
+    var mult=Math.pow(10,precision);
+    var idx=r1[1],lat=0,lng=0;
     while(idx<encoded.length){
-      var r1=decodeUnsigned(encoded,idx);lat+=toSigned(r1[0]);idx=r1[1];
-      var r2=decodeUnsigned(encoded,idx);lng+=toSigned(r2[0]);idx=r2[1];
-      if(has3d){var r3=decodeUnsigned(encoded,idx);idx=r3[1];}
-      result.push([lat*mult,lng*mult]); // [lat, lon] format
+      var rl=du(encoded,idx);lat+=ts(rl[0]);idx=rl[1];
+      var rg=du(encoded,idx);lng+=ts(rg[0]);idx=rg[1];
+      if(has3d){var r3=du(encoded,idx);idx=r3[1];}
+      result.push([lat/mult,lng/mult]);
     }
-  }catch(e){console.error('Polyline decode error:',e);}
+    console.log('Decoded',result.length,'pts. First:',result[0]);
+  }catch(e){console.error('FP decode error:',e);}
   return result;
 }
 
