@@ -596,6 +596,7 @@ function desenharRota(geo,distKm){
   mOrig=L.marker(coordOrig,{icon:iO}).bindPopup('<b>Origem</b><br>'+geo.origem.nome).addTo(leafMap);
   mDest=L.marker(coordDest,{icon:iD}).bindPopup('<b>Destino</b><br>'+geo.destino.nome).addTo(leafMap);
   leafMap.fitBounds(mPolyline.getBounds(),{padding:[40,40]});
+  setTimeout(()=>leafMap.invalidateSize(),100);
 }
 
 // ── FLEXIBLE POLYLINE DECODER ──
