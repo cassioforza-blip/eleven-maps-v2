@@ -161,9 +161,13 @@
     .si:hover{background:#f1f5f9;}
 
     @media(max-width:768px){
-      .panel{position:absolute;z-index:200;height:100%;box-shadow:4px 0 20px rgba(0,0,0,0.12);}
+      .layout{flex-direction:column-reverse;}
+      .panel{width:100%;min-width:100%;height:auto;max-height:55vh;border-right:none;border-top:1px solid var(--border);box-shadow:0 -4px 20px rgba(0,0,0,0.1);overflow-y:auto;}
       .panel.hidden{display:none;}
+      .mapwrap{flex:1;min-height:45vh;}
       .tpanel{display:flex!important;}
+      .pi{padding:0.85rem;}
+      .stats{grid-template-columns:1fr 1fr 1fr 1fr;}
     }
     .tpanel{display:none;}
   </style>
