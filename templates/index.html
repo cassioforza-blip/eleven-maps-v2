@@ -127,7 +127,7 @@
 
     /* MAP */
     .mapwrap{flex:1;position:relative;}
-    #map{width:100%;height:100%;}
+    #map{width:100%;height:100%;background:#e8f4f8;}
 
     /* NAV OVERLAY */
     #nav-overlay{display:none;position:absolute;inset:0;z-index:500;flex-direction:column;background:#0d0f14;}
@@ -343,7 +343,7 @@ tick(); setInterval(tick,1000);
 // ── MAP INIT ──
 window.addEventListener('load',function(){
   leafMap=L.map('map',{zoomControl:true,attributionControl:false}).setView([-23.55,-46.63],12);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(leafMap);
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,crossOrigin:true}).addTo(leafMap);
   L.control.attribution({prefix:'© OpenStreetMap'}).addTo(leafMap);
   atualizarCasaUI();
 });
@@ -597,11 +597,14 @@ function desenharRota(geo,distKm){
   mOrig=L.marker(coordOrig,{icon:iO}).bindPopup('<b>Origem</b><br>'+geo.origem.nome).addTo(leafMap);
   mDest=L.marker(coordDest,{icon:iD}).bindPopup('<b>Destino</b><br>'+geo.destino.nome).addTo(leafMap);
   var bounds = mPolyline.getBounds();
-  leafMap.invalidateSize();
   setTimeout(function(){
-    leafMap.fitBounds(bounds, {padding:[60,60], maxZoom:15});
-    setTimeout(function(){ leafMap.invalidateSize(); }, 300);
-  }, 200);
+    leafMap.invalidateSize(true);
+    leafMap.fitBounds(bounds, {padding:[50,50], maxZoom:15});
+    // Force tile reload
+    leafMap.eachLayer(function(layer){
+      if(layer.redraw) layer.redraw();
+    });
+  }, 300);
 }
 
 // ── FLEXIBLE POLYLINE DECODER ──
