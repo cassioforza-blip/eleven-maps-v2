@@ -343,7 +343,11 @@ tick(); setInterval(tick,1000);
 // ── MAP INIT ──
 window.addEventListener('load',function(){
   leafMap=L.map('map',{zoomControl:true,attributionControl:false}).setView([-23.55,-46.63],12);
-  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,crossOrigin:true}).addTo(leafMap);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+    maxZoom: 19,
+    subdomains: 'abcd',
+    attribution: '© OpenStreetMap © CARTO'
+  }).addTo(leafMap);
   L.control.attribution({prefix:'© OpenStreetMap'}).addTo(leafMap);
   atualizarCasaUI();
 });
