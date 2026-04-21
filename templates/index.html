@@ -153,6 +153,12 @@
     .nc.d3{background:#22263a;color:var(--accent2);border:1px solid #2a2d42;max-width:65px;}
     .nc.cls{background:#22263a;color:#f87171;border:1px solid #2a2d42;max-width:48px;}
 
+    /* METRO PANEL */
+    .metro-line{display:flex;align-items:center;gap:7px;padding:6px 9px;border-radius:8px;background:var(--surface);border:1px solid var(--border);font-size:0.72rem;}
+    .metro-dot{color:var(--lc);font-size:1rem;flex-shrink:0;}
+    .metro-name{flex:1;color:var(--text);line-height:1.3;}
+    .metro-time{font-family:'Syne',sans-serif;font-size:0.68rem;font-weight:700;color:var(--accent);white-space:nowrap;background:rgba(108,99,255,0.1);padding:2px 7px;border-radius:10px;}
+
     /* TRANSPORT MODES */
     .tmodes{display:flex;gap:6px;margin-bottom:2px;}
     .tmbtn{flex:1;padding:0.52rem 4px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--muted);font-size:0.75rem;cursor:pointer;transition:all 0.2s;text-align:center;display:flex;flex-direction:column;align-items:center;gap:2px;}
@@ -272,6 +278,74 @@
             <span class="tm-label">Metrô</span>
           </button>
         </div>
+      </div>
+
+      <!-- PAINEL METRÔ SP -->
+      <div id="metro-panel" style="display:none;">
+        <label class="fl" style="margin-bottom:7px;">🚇 Linhas de Metrô / CPTM — SP</label>
+        <div style="display:flex;flex-direction:column;gap:5px;" id="metro-lines">
+          <div class="metro-line" style="--lc:#0055a5">
+            <span class="metro-dot">●</span>
+            <span class="metro-name">Linha 1 – Azul (Tucuruvi ↔ Jabaquara)</span>
+            <span class="metro-time" id="ml1">~35 min</span>
+          </div>
+          <div class="metro-line" style="--lc:#007a53">
+            <span class="metro-dot">●</span>
+            <span class="metro-name">Linha 2 – Verde (Vila Madalena ↔ Vila Prudente)</span>
+            <span class="metro-time" id="ml2">~28 min</span>
+          </div>
+          <div class="metro-line" style="--lc:#ee3124">
+            <span class="metro-dot">●</span>
+            <span class="metro-name">Linha 3 – Vermelha (Palmeiras-Barra Funda ↔ Corinthians)</span>
+            <span class="metro-time" id="ml3">~42 min</span>
+          </div>
+          <div class="metro-line" style="--lc:#ffd700">
+            <span class="metro-dot">●</span>
+            <span class="metro-name">Linha 4 – Amarela (Luz ↔ Vila Sônia)</span>
+            <span class="metro-time" id="ml4">~22 min</span>
+          </div>
+          <div class="metro-line" style="--lc:#9b2282">
+            <span class="metro-dot">●</span>
+            <span class="metro-name">Linha 5 – Lilás (Capão Redondo ↔ Chácara Klabin)</span>
+            <span class="metro-time" id="ml5">~30 min</span>
+          </div>
+          <div class="metro-line" style="--lc:#e96b1e">
+            <span class="metro-dot">●</span>
+            <span class="metro-name">CPTM Linha 7 – Rubi (Luz ↔ Francisco Morato)</span>
+            <span class="metro-time" id="ml7">~65 min</span>
+          </div>
+          <div class="metro-line" style="--lc:#97c93d">
+            <span class="metro-dot">●</span>
+            <span class="metro-name">CPTM Linha 9 – Esmeralda (Osasco ↔ Grajaú)</span>
+            <span class="metro-time" id="ml9">~50 min</span>
+          </div>
+          <div class="metro-line" style="--lc:#00b1e8">
+            <span class="metro-dot">●</span>
+            <span class="metro-name">CPTM Linha 10 – Turquesa (Brás ↔ Rio Grande da Serra)</span>
+            <span class="metro-time" id="ml10">~55 min</span>
+          </div>
+          <div class="metro-line" style="--lc:#f05a22">
+            <span class="metro-dot">●</span>
+            <span class="metro-name">CPTM Linha 11 – Coral (Luz ↔ Guaianases)</span>
+            <span class="metro-time" id="ml11">~48 min</span>
+          </div>
+          <div class="metro-line" style="--lc:#0080c8">
+            <span class="metro-dot">●</span>
+            <span class="metro-name">CPTM Linha 12 – Safira (Brás ↔ Calmon Viana)</span>
+            <span class="metro-time" id="ml12">~52 min</span>
+          </div>
+          <div class="metro-line" style="--lc:#00adef">
+            <span class="metro-dot">●</span>
+            <span class="metro-name">CPTM Linha 13 – Jade (Aeroporto Guarulhos ↔ Engenheiro Goulart)</span>
+            <span class="metro-time" id="ml13">~25 min</span>
+          </div>
+          <div class="metro-line" style="--lc:#d2a03c">
+            <span class="metro-dot">●</span>
+            <span class="metro-name">CPTM Linha 15 – Prata (Vila Prudente ↔ São Mateus)</span>
+            <span class="metro-time" id="ml15">~18 min</span>
+          </div>
+        </div>
+        <p style="font-size:0.65rem;color:var(--muted);margin-top:6px;">⚠️ Tempos estimados. Consulte o app Metrô SP para horários em tempo real.</p>
       </div>
 
       <!-- TIPO ROTA -->
@@ -412,15 +486,32 @@ function setTipoVia(t){
   document.getElementById('rm-bairros').classList.toggle('active',t==='bairros');
   document.getElementById('rm-principais').classList.toggle('active',t==='principais');
 }
+function calcAngle(coords,idx){
+  var next=coords[Math.min(idx+1,coords.length-1)];
+  var cur=coords[idx];
+  if(!next||!cur)return 0;
+  var dy=next[0]-cur[0];
+  var dx=next[1]-cur[1];
+  return Math.atan2(dx,dy)*(180/Math.PI);
+}
+function criarSetaHTML(angle){
+  return'<div style="width:40px;height:40px;display:flex;align-items:center;justify-content:center;">'+
+    '<div style="width:0;height:0;transform:rotate('+angle+'deg);filter:drop-shadow(0 0 6px #6c63ff);position:relative;">'+
+    '<svg width="36" height="36" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">'+
+    '<polygon points="18,2 30,30 18,24 6,30" fill="#6c63ff" stroke="#fff" stroke-width="2.5" stroke-linejoin="round"/>'+
+    '</svg></div></div>';
+}
+
 function setTransporte(t){
   modoTransporte=t;
   var btns=['car','walk','bike','metro'];
   var vals=['car','pedestrian','bicycle','publicTransport'];
   btns.forEach((b,i)=>{document.getElementById('tm-'+b).classList.toggle('active',vals[i]===t);});
-  // Metrô e a pé não usam tipo de via
   var hideVia=t==='pedestrian'||t==='bicycle'||t==='publicTransport';
   document.querySelector('.rmodes').style.opacity=hideVia?'0.35':'1';
   document.querySelector('.rmodes').style.pointerEvents=hideVia?'none':'all';
+  // Mostrar/esconder painel metrô
+  document.getElementById('metro-panel').style.display=t==='publicTransport'?'block':'none';
 }
 
 // ── CASA ──
@@ -595,7 +686,12 @@ async function calcularRota(){
 
     // STEP 4: Backend calcula semáforos e tempo
     setSteps(4);
-    var calcResp=await fetch('/calcular',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({distancia_km:distKm,duracao_min:durMin,transito_status:trafficStatus})});
+    // Para modos não-carro, trânsito não afeta e semáforos são reduzidos
+    var statusParaCalculo=trafficStatus;
+    if(modoTransporte==='pedestrian'||modoTransporte==='bicycle'||modoTransporte==='publicTransport'){
+      statusParaCalculo='livre'; // sem impacto de trânsito
+    }
+    var calcResp=await fetch('/calcular',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({distancia_km:distKm,duracao_min:durMin,transito_status:statusParaCalculo,modo_transporte:modoTransporte})});
     var calcData=await calcResp.json();
 
     clearInterval(timer);
@@ -721,12 +817,20 @@ function abrirNav(){
   if(nPolyline)navMap.removeLayer(nPolyline);
   nPolyline=L.polyline(rotaCoords,{color:'#6c63ff',weight:7,opacity:0.9}).addTo(navMap);
 
-  // Destino
-  var iD=L.divIcon({className:'',html:'<div style="width:20px;height:20px;background:#6c63ff;border-radius:50%;border:3px solid #fff;box-shadow:0 0 12px #6c63ff;"></div>',iconSize:[20,20],iconAnchor:[10,10]});
+  // Bandeira no destino
+  var flagHtml='<div style="display:flex;flex-direction:column;align-items:center;transform:translate(-4px,-36px)">'+
+    '<div style="width:22px;height:3px;background:#6c63ff;border-radius:2px;position:relative;">'+
+    '<div style="position:absolute;left:0;top:-13px;width:0;height:0;border-left:14px solid #6c63ff;border-top:9px solid transparent;border-bottom:9px solid transparent;"></div>'+
+    '</div>'+
+    '<div style="width:3px;height:22px;background:#6c63ff;border-radius:2px;margin-top:-1px;"></div>'+
+    '</div>';
+  var iD=L.divIcon({className:'',html:flagHtml,iconSize:[30,40],iconAnchor:[4,36]});
   L.marker(rotaCoords[rotaCoords.length-1],{icon:iD}).addTo(navMap);
 
-  // Carro
-  var iC=L.divIcon({className:'',html:'<div style="width:28px;height:28px;background:linear-gradient(135deg,#6c63ff,#48bfe3);border-radius:50%;border:3px solid #fff;box-shadow:0 0 18px #6c63ff,0 0 5px #48bfe3;"></div>',iconSize:[28,28],iconAnchor:[14,14]});
+  // Seta estilo Waze
+  var angle=calcAngle(rotaCoords,0);
+  var arrowHtml=criarSetaHTML(angle);
+  var iC=L.divIcon({className:'',html:arrowHtml,iconSize:[40,40],iconAnchor:[20,20]});
   if(nMarker)navMap.removeLayer(nMarker);
   nMarker=L.marker(rotaCoords[0],{icon:iC}).addTo(navMap);
 
@@ -757,6 +861,10 @@ function togglePlay(){
       }
       navIdx++;
       var pos=rotaCoords[navIdx];
+      var angle=calcAngle(rotaCoords,navIdx);
+      var arrowHtml=criarSetaHTML(angle);
+      var iC=L.divIcon({className:'',html:arrowHtml,iconSize:[40,40],iconAnchor:[20,20]});
+      nMarker.setIcon(iC);
       nMarker.setLatLng(pos);
       navMap.panTo(pos,{animate:true,duration:0.3});
       var pct=Math.round(navIdx/(rotaCoords.length-1)*100);

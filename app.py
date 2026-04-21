@@ -141,11 +141,29 @@ def calcular():
     distancia_km = dados.get("distancia_km", 0)
     duracao_min = dados.get("duracao_min", 0)
     transito_status = dados.get("transito_status", "indisponível")
+    modo_transporte = dados.get("modo_transporte", "car")
 
-    fator = {"congestionado": 1.6, "moderado": 1.25}.get(transito_status, 1.0)
+    # Fator de trânsito só para carro
+    if modo_transporte == "car":
+        fator = {"congestionado": 1.6, "moderado": 1.25}.get(transito_status, 1.0)
+    else:
+        fator = 1.0  # outros modos não sofrem impacto de trânsito de carro
+
     duracao_transito = round(duracao_min * fator)
     vel_media = round((distancia_km / max(duracao_min, 1)) * 60, 1)
-    semaforos = estimar_semaforos(distancia_km, duracao_transito, vel_media)
+
+    # Semáforos só fazem sentido para carro e bicicleta
+    if modo_transporte in ("pedestrian", "publicTransport"):
+        semaforos = {"semaforos": 0, "atraso_min": 0, "duracao_ajustada_min": duracao_transito}
+    elif modo_transporte == "bicycle":
+        # Bicicleta para em alguns semáforos mas não todos
+        sem = estimar_semaforos(distancia_km, duracao_transito, vel_media)
+        sem["semaforos"] = round(sem["semaforos"] * 0.5)
+        sem["atraso_min"] = round(sem["atraso_min"] * 0.3)
+        sem["duracao_ajustada_min"] = duracao_transito + sem["atraso_min"]
+        semaforos = sem
+    else:
+        semaforos = estimar_semaforos(distancia_km, duracao_transito, vel_media)
 
     return jsonify({
         "duracao_base_min": duracao_min,
