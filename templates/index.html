@@ -492,6 +492,8 @@ function renderizarTransportePublico(hereData, geo){
     vazio.textContent='Erro ao processar rota de transporte público.';
   }
 }
+
+function calcAngle(coords,idx){
   var next=coords[Math.min(idx+1,coords.length-1)];
   var cur=coords[idx];
   if(!next||!cur)return 0;
