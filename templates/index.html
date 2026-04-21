@@ -274,78 +274,21 @@
             <span class="tm-label">Bicicleta</span>
           </button>
           <button class="tmbtn" id="tm-metro" onclick="setTransporte('publicTransport')">
-            <span class="tm-icon">🚇</span>
-            <span class="tm-label">Metrô</span>
+            <span class="tm-icon">🚌</span>
+            <span class="tm-label">Público</span>
           </button>
         </div>
       </div>
 
-      <!-- PAINEL METRÔ SP -->
+      <!-- PAINEL TRANSPORTE PÚBLICO -->
       <div id="metro-panel" style="display:none;">
-        <label class="fl" style="margin-bottom:7px;">🚇 Linhas de Metrô / CPTM — SP</label>
-        <div style="display:flex;flex-direction:column;gap:5px;" id="metro-lines">
-          <div class="metro-line" style="--lc:#0055a5">
-            <span class="metro-dot">●</span>
-            <span class="metro-name">Linha 1 – Azul (Tucuruvi ↔ Jabaquara)</span>
-            <span class="metro-time" id="ml1">~35 min</span>
-          </div>
-          <div class="metro-line" style="--lc:#007a53">
-            <span class="metro-dot">●</span>
-            <span class="metro-name">Linha 2 – Verde (Vila Madalena ↔ Vila Prudente)</span>
-            <span class="metro-time" id="ml2">~28 min</span>
-          </div>
-          <div class="metro-line" style="--lc:#ee3124">
-            <span class="metro-dot">●</span>
-            <span class="metro-name">Linha 3 – Vermelha (Palmeiras-Barra Funda ↔ Corinthians)</span>
-            <span class="metro-time" id="ml3">~42 min</span>
-          </div>
-          <div class="metro-line" style="--lc:#ffd700">
-            <span class="metro-dot">●</span>
-            <span class="metro-name">Linha 4 – Amarela (Luz ↔ Vila Sônia)</span>
-            <span class="metro-time" id="ml4">~22 min</span>
-          </div>
-          <div class="metro-line" style="--lc:#9b2282">
-            <span class="metro-dot">●</span>
-            <span class="metro-name">Linha 5 – Lilás (Capão Redondo ↔ Chácara Klabin)</span>
-            <span class="metro-time" id="ml5">~30 min</span>
-          </div>
-          <div class="metro-line" style="--lc:#e96b1e">
-            <span class="metro-dot">●</span>
-            <span class="metro-name">CPTM Linha 7 – Rubi (Luz ↔ Francisco Morato)</span>
-            <span class="metro-time" id="ml7">~65 min</span>
-          </div>
-          <div class="metro-line" style="--lc:#97c93d">
-            <span class="metro-dot">●</span>
-            <span class="metro-name">CPTM Linha 9 – Esmeralda (Osasco ↔ Grajaú)</span>
-            <span class="metro-time" id="ml9">~50 min</span>
-          </div>
-          <div class="metro-line" style="--lc:#00b1e8">
-            <span class="metro-dot">●</span>
-            <span class="metro-name">CPTM Linha 10 – Turquesa (Brás ↔ Rio Grande da Serra)</span>
-            <span class="metro-time" id="ml10">~55 min</span>
-          </div>
-          <div class="metro-line" style="--lc:#f05a22">
-            <span class="metro-dot">●</span>
-            <span class="metro-name">CPTM Linha 11 – Coral (Luz ↔ Guaianases)</span>
-            <span class="metro-time" id="ml11">~48 min</span>
-          </div>
-          <div class="metro-line" style="--lc:#0080c8">
-            <span class="metro-dot">●</span>
-            <span class="metro-name">CPTM Linha 12 – Safira (Brás ↔ Calmon Viana)</span>
-            <span class="metro-time" id="ml12">~52 min</span>
-          </div>
-          <div class="metro-line" style="--lc:#00adef">
-            <span class="metro-dot">●</span>
-            <span class="metro-name">CPTM Linha 13 – Jade (Aeroporto Guarulhos ↔ Engenheiro Goulart)</span>
-            <span class="metro-time" id="ml13">~25 min</span>
-          </div>
-          <div class="metro-line" style="--lc:#d2a03c">
-            <span class="metro-dot">●</span>
-            <span class="metro-name">CPTM Linha 15 – Prata (Vila Prudente ↔ São Mateus)</span>
-            <span class="metro-time" id="ml15">~18 min</span>
-          </div>
+        <label class="fl" style="margin-bottom:7px;">🚌 Transporte Público — Rota Combinada</label>
+        <div id="tp-loading" style="font-size:0.75rem;color:var(--muted);padding:8px 0;display:none;">⏳ Calculando melhor rota...</div>
+        <div id="tp-resultado" style="display:none;flex-direction:column;gap:6px;"></div>
+        <div id="tp-vazio" style="font-size:0.75rem;color:var(--muted);padding:8px 0;">
+          🗺️ Digite origem e destino e clique em <strong>Calcular Rota</strong> para ver as opções combinando ônibus, metrô e trem.
         </div>
-        <p style="font-size:0.65rem;color:var(--muted);margin-top:6px;">⚠️ Tempos estimados. Consulte o app Metrô SP para horários em tempo real.</p>
+        <p style="font-size:0.65rem;color:var(--muted);margin-top:6px;">ℹ️ A rota pode combinar caminhada, ônibus, metrô e trem conforme necessário.</p>
       </div>
 
       <!-- TIPO ROTA -->
@@ -435,6 +378,7 @@
       <div class="nav-ctrl">
         <button class="nc play" id="nav-play" onclick="togglePlay()">▶ Iniciar</button>
         <button class="nc d3" id="btn3d" onclick="toggle3D()">2D</button>
+        <button class="nc stop" id="btn-norte" onclick="toggleNorte()" title="Travar Norte">🧭</button>
         <button class="nc stop" onclick="resetNav()">↺</button>
         <button class="nc cls" onclick="fecharNav()">✕</button>
       </div>
@@ -450,7 +394,7 @@ var leafMap=null, navMap=null;
 var rotaCoords=[], coordOrig=null, coordDest=null;
 var mPolyline=null, mOrig=null, mDest=null;
 var nPolyline=null, nMarker=null;
-var navIdx=0, navTimer=null, navPlaying=false, modo3D=false;
+var navIdx=0, navTimer=null, navPlaying=false, modo3D=false, travarNorte=true;
 var gpsWatch=null, gpsAtivo=false;
 var modoRota='fast', tipoVia='bairros', modoTransporte='car';
 var endCasa=localStorage.getItem('eleven_casa')||'';
@@ -486,7 +430,76 @@ function setTipoVia(t){
   document.getElementById('rm-bairros').classList.toggle('active',t==='bairros');
   document.getElementById('rm-principais').classList.toggle('active',t==='principais');
 }
-function calcAngle(coords,idx){
+function toggleNorte(){
+  travarNorte=!travarNorte;
+  var btn=document.getElementById('btn-norte');
+  if(travarNorte){
+    btn.style.color='#facc15';
+    toast('🧭 Norte travado');
+  } else {
+    btn.style.color='var(--muted)';
+    toast('🧭 Seguindo direção');
+  }
+}
+
+function renderizarTransportePublico(hereData, geo){
+  var res=document.getElementById('tp-resultado');
+  var vazio=document.getElementById('tp-vazio');
+  res.innerHTML='';
+  res.style.display='none';
+  vazio.style.display='none';
+
+  try{
+    var sections=hereData.routes[0].sections;
+    var etapas=[];
+    var totalMin=0;
+    var totalDist=0;
+
+    sections.forEach(function(sec){
+      var tipo=sec.type||'vehicle';
+      var dur=Math.round((sec.summary?.duration||0)/60);
+      var dist=Math.round((sec.summary?.length||0)/10)/100;
+      totalMin+=dur;
+      totalDist+=dist;
+      var icone='🚶';
+      var label='A pé';
+      var cor='#6b7280';
+
+      if(tipo==='transit'){
+        var tname=sec.transport?.name||'';
+        var tmode=sec.transport?.mode||'';
+        if(tmode==='subway'||tname.match(/linha|metro/i)){icone='🚇';cor='#6c63ff';}
+        else if(tmode==='regionalRail'||tname.match(/cptm|trem/i)){icone='🚆';cor='#e96b1e';}
+        else{icone='🚌';cor='#22c55e';}
+        label=tname||'Transporte';
+      }
+
+      if(dur>0){
+        etapas.push({icone,label,dur,dist,cor});
+      }
+    });
+
+    if(!etapas.length){vazio.style.display='block';vazio.textContent='Nenhuma rota de transporte público encontrada para este trajeto.';return;}
+
+    // Resumo total
+    res.innerHTML='<div style="background:linear-gradient(135deg,rgba(108,99,255,0.1),rgba(72,191,227,0.08));border:1px solid rgba(108,99,255,0.2);border-radius:9px;padding:10px 12px;margin-bottom:4px;">'+
+      '<div style="font-family:Syne,sans-serif;font-size:0.8rem;font-weight:700;color:var(--accent);">🚌 Rota de Transporte Público</div>'+
+      '<div style="font-size:0.72rem;color:var(--muted);margin-top:3px;">⏱ '+totalMin+' min · '+totalDist.toFixed(1)+' km · '+etapas.length+' etapa(s)</div>'+
+      '</div>'+
+      etapas.map(function(e,i){
+        return '<div class="metro-line" style="--lc:'+e.cor+'">'+
+          '<span style="font-size:1.1rem;">'+e.icone+'</span>'+
+          '<span class="metro-name">'+e.label+'</span>'+
+          '<span class="metro-time">'+e.dur+' min</span>'+
+          '</div>';
+      }).join('');
+
+    res.style.display='flex';
+  } catch(e){
+    vazio.style.display='block';
+    vazio.textContent='Erro ao processar rota de transporte público.';
+  }
+}
   var next=coords[Math.min(idx+1,coords.length-1)];
   var cur=coords[idx];
   if(!next||!cur)return 0;
@@ -605,6 +618,12 @@ async function calcularRota(){
   document.getElementById('bnav').className='bnav';
   btn.disabled=true;btn.querySelector('span').textContent='⏳ Calculando...';
   document.getElementById('lbox').className='lbox show';
+  // Loading transporte público
+  if(modoTransporte==='publicTransport'){
+    document.getElementById('tp-loading').style.display='block';
+    document.getElementById('tp-resultado').style.display='none';
+    document.getElementById('tp-vazio').style.display='none';
+  }
 
   var step=1;setSteps(step);
   var timer=setInterval(()=>{step=Math.min(step+1,4);setSteps(step);},2000);
@@ -718,6 +737,12 @@ async function calcularRota(){
     document.getElementById('rn-o').textContent=geo.origem.nome;
     document.getElementById('rn-d').textContent=geo.destino.nome;
     document.getElementById('rnames').className='rnames show';
+
+    // Transporte público — renderizar etapas
+    if(modoTransporte==='publicTransport'){
+      document.getElementById('tp-loading').style.display='none';
+      renderizarTransportePublico(hereData, geo);
+    }
 
     // Trânsito
     document.getElementById('tdot').style.cssText=`background:${trafficCor};box-shadow:0 0 8px ${trafficCor}`;
@@ -866,12 +891,22 @@ function togglePlay(){
       var iC=L.divIcon({className:'',html:arrowHtml,iconSize:[40,40],iconAnchor:[20,20]});
       nMarker.setIcon(iC);
       nMarker.setLatLng(pos);
-      navMap.panTo(pos,{animate:true,duration:0.3});
+      // Câmera estilo Waze — zoom próximo, levemente à frente
+      var zoom=travarNorte?17:17;
+      if(!travarNorte && navIdx+5<rotaCoords.length){
+        // Centraliza entre posição atual e ponto à frente para ver mais da rota
+        var ahead=rotaCoords[Math.min(navIdx+8,rotaCoords.length-1)];
+        var midLat=(pos[0]+ahead[0])/2;
+        var midLng=(pos[1]+ahead[1])/2;
+        navMap.setView([midLat,midLng],17,{animate:true,duration:0.3});
+      } else {
+        navMap.setView(pos,17,{animate:true,duration:0.3});
+      }
       var pct=Math.round(navIdx/(rotaCoords.length-1)*100);
       document.getElementById('nav-pb').style.width=pct+'%';
       var kmRest=((1-pct/100)*(dadosRota?.distKm||0)).toFixed(1);
       document.getElementById('nav-dist').textContent='Restam: '+kmRest+' km';
-    },30);
+    },80);
   }
 }
 
