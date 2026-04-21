@@ -129,10 +129,10 @@
     .mapwrap{flex:1;position:relative;}
     #map{width:100%;height:100%;background:#e8f4f8;}
 
-    /* NAV FULLSCREEN */
-    #nav-overlay{display:none;position:fixed;inset:0;z-index:2000;flex-direction:column;background:#0d0f14;}
-    #nav-overlay.show{display:flex;}
-    #nav-map{width:100%;flex:1;min-height:0;transition:transform 0.4s ease;}
+    /* NAV FULLSCREEN WAZE-STYLE */
+    #nav-overlay{display:none;position:fixed;inset:0;z-index:2000;background:#0d0f14;}
+    #nav-overlay.show{display:block;}
+    #nav-map{position:absolute;inset:0;width:100%;height:100%;}
     #nav-map.tilt{transform:perspective(900px) rotateX(28deg) scale(1.18);transform-origin:bottom center;}
 
     .nav-hud{background:linear-gradient(180deg,#0d0f14,#141720);padding:14px 18px 10px;display:flex;flex-direction:column;gap:8px;border-top:1px solid rgba(108,99,255,0.25);}
@@ -347,32 +347,48 @@
 
     <!-- NAV OVERLAY FULLSCREEN -->
     <div id="nav-overlay">
-      <div class="nav-topbar">
-        <button class="nav-menu-btn" onclick="fecharNav()" title="Voltar">☰</button>
-        <span class="nav-title">Eleven Maps — Navegação</span>
-      </div>
-      <div id="nav-map"></div>
-      <div class="nav-hud">
-        <div class="nav-top">
-          <div class="nav-spd">
-            <div class="nav-spd-n" id="nav-spd">0</div>
-            <div class="nav-spd-u">km/h</div>
+      <!-- WAZE-STYLE: mapa ocupa tudo, HUD flutuante -->
+      <div id="nav-map" style="position:absolute;inset:0;z-index:1;"></div>
+
+      <!-- TOP: próxima instrução -->
+      <div id="nav-top-hud" style="position:absolute;top:0;left:0;right:0;z-index:10;padding:12px 14px 0;">
+        <div style="background:rgba(13,15,20,0.92);border-radius:14px;padding:12px 16px;display:flex;align-items:center;gap:12px;backdrop-filter:blur(10px);border:1px solid rgba(108,99,255,0.3);">
+          <div id="nav-arrow-icon" style="font-size:2rem;line-height:1;">⬆️</div>
+          <div style="flex:1;">
+            <div id="nav-next-dist" style="font-family:'Syne',sans-serif;font-size:1.3rem;font-weight:800;color:#48bfe3;">—</div>
+            <div id="nav-next-street" style="font-size:0.8rem;color:#e8eaf0;margin-top:2px;">Siga em frente</div>
           </div>
-          <div class="nav-info">
-            <div class="nav-dist" id="nav-dist">—</div>
-            <div class="nav-eta" id="nav-eta">—</div>
-          </div>
-        </div>
-        <div class="nav-pb-wrap">
-          <div class="nav-pb" id="nav-pb" style="width:0%"></div>
+          <button onclick="fecharNav()" style="width:34px;height:34px;border-radius:10px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.08);color:#e8eaf0;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;">☰</button>
         </div>
       </div>
-      <div class="nav-ctrl">
-        <button class="nc play" id="nav-play" onclick="togglePlay()">▶ Iniciar</button>
-        <button class="nc d3" id="btn3d" onclick="toggle3D()">2D</button>
-        <button class="nc stop" id="btn-norte" onclick="toggleNorte()" title="Travar Norte">🧭</button>
-        <button class="nc stop" onclick="resetNav()">↺</button>
-        <button class="nc cls" onclick="fecharNav()">✕</button>
+
+      <!-- BOTTOM: velocidade + controles -->
+      <div id="nav-bot-hud" style="position:absolute;bottom:0;left:0;right:0;z-index:10;padding:0 14px 16px;">
+        <!-- barra de progresso -->
+        <div style="height:3px;background:rgba(255,255,255,0.1);border-radius:3px;margin-bottom:10px;overflow:hidden;">
+          <div id="nav-pb" style="height:100%;width:0%;background:linear-gradient(90deg,#6c63ff,#48bfe3);border-radius:3px;transition:width 0.3s;"></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <!-- velocidade -->
+          <div style="background:rgba(13,15,20,0.92);border-radius:50%;width:64px;height:64px;display:flex;flex-direction:column;align-items:center;justify-content:center;border:2px solid #6c63ff;backdrop-filter:blur(10px);flex-shrink:0;">
+            <div id="nav-spd" style="font-family:'Syne',sans-serif;font-size:1.3rem;font-weight:800;color:#fff;line-height:1;">0</div>
+            <div style="font-size:0.5rem;color:rgba(255,255,255,0.6);text-transform:uppercase;letter-spacing:1px;">km/h</div>
+          </div>
+          <!-- info rota -->
+          <div style="flex:1;background:rgba(13,15,20,0.92);border-radius:12px;padding:10px 14px;backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.08);">
+            <div id="nav-dist" style="font-family:'Syne',sans-serif;font-size:0.95rem;font-weight:700;color:#e8eaf0;">—</div>
+            <div id="nav-eta" style="font-size:0.72rem;color:#6b7280;margin-top:2px;">—</div>
+          </div>
+          <!-- botões -->
+          <div style="display:flex;flex-direction:column;gap:6px;">
+            <button id="nav-play" onclick="togglePlay()" style="background:linear-gradient(135deg,#6c63ff,#48bfe3);color:#fff;border:none;border-radius:10px;padding:8px 14px;font-family:'Syne',sans-serif;font-weight:700;font-size:0.78rem;cursor:pointer;">▶ Iniciar</button>
+            <div style="display:flex;gap:5px;">
+              <button id="btn3d" onclick="toggle3D()" style="flex:1;background:rgba(34,38,58,0.9);color:#48bfe3;border:1px solid #2a2d42;border-radius:8px;padding:5px;font-family:'Syne',sans-serif;font-weight:700;font-size:0.72rem;cursor:pointer;">2D</button>
+              <button id="btn-norte" onclick="toggleNorte()" style="flex:1;background:rgba(34,38,58,0.9);color:#facc15;border:1px solid #2a2d42;border-radius:8px;padding:5px;font-size:0.8rem;cursor:pointer;">🧭</button>
+              <button onclick="resetNav()" style="flex:1;background:rgba(34,38,58,0.9);color:#6b7280;border:1px solid #2a2d42;border-radius:8px;padding:5px;font-size:0.8rem;cursor:pointer;">↺</button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -502,10 +518,11 @@ function calcAngle(coords,idx){
   return Math.atan2(dx,dy)*(180/Math.PI);
 }
 function criarSetaHTML(angle){
-  return'<div style="width:40px;height:40px;display:flex;align-items:center;justify-content:center;">'+
-    '<div style="width:0;height:0;transform:rotate('+angle+'deg);filter:drop-shadow(0 0 6px #6c63ff);position:relative;">'+
-    '<svg width="36" height="36" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">'+
-    '<polygon points="18,2 30,30 18,24 6,30" fill="#6c63ff" stroke="#fff" stroke-width="2.5" stroke-linejoin="round"/>'+
+  return'<div style="width:60px;height:60px;display:flex;align-items:center;justify-content:center;">'+
+    '<div style="transform:rotate('+angle+'deg);filter:drop-shadow(0 0 8px #48bfe3) drop-shadow(0 0 3px #000);">'+
+    '<svg width="52" height="52" viewBox="0 0 52 52" fill="none" xmlns="http://www.w3.org/2000/svg">'+
+    '<polygon points="26,3 44,44 26,34 8,44" fill="#48bfe3" stroke="#fff" stroke-width="3" stroke-linejoin="round"/>'+
+    '<circle cx="26" cy="26" r="5" fill="#fff" opacity="0.6"/>'+
     '</svg></div></div>';
 }
 
@@ -824,32 +841,36 @@ function abrirNav(){
   document.getElementById('nav-play').textContent='▶ Iniciar';
   document.getElementById('nav-pb').style.width='0%';
   document.getElementById('nav-dist').textContent='Rota: '+(dadosRota?.distKm||'?')+' km';
-  document.getElementById('nav-eta').textContent='Chegada estimada: '+(dadosRota?.calcData?.duracao_total_min||'?')+' min';
+  document.getElementById('nav-eta').textContent='Chegada: '+(dadosRota?.calcData?.duracao_total_min||'?')+' min';
+  document.getElementById('nav-next-dist').textContent='Siga a rota';
+  document.getElementById('nav-next-street').textContent='Navegação iniciada';
 
   if(!navMap){
-    navMap=L.map('nav-map',{zoomControl:false,attributionControl:false}).setView(rotaCoords[0],17);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(navMap);
-  } else {
-    navMap.setView(rotaCoords[0],17);
+    // Tile escuro estilo Waze/noturno
+    navMap=L.map('nav-map',{zoomControl:false,attributionControl:false,dragging:false,scrollWheelZoom:false});
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{maxZoom:19,subdomains:'abcd'}).addTo(navMap);
   }
+  // Câmera: posicionar com offset para seta ficar na parte inferior (30% do topo)
+  navMap.setView(rotaCoords[0],18);
+  setTimeout(()=>navMap.invalidateSize(),100);
 
   if(nPolyline)navMap.removeLayer(nPolyline);
-  nPolyline=L.polyline(rotaCoords,{color:'#6c63ff',weight:7,opacity:0.9}).addTo(navMap);
+  nPolyline=L.polyline(rotaCoords,{color:'#48bfe3',weight:8,opacity:0.95}).addTo(navMap);
 
   // Bandeira no destino
-  var flagHtml='<div style="display:flex;flex-direction:column;align-items:center;transform:translate(-4px,-36px)">'+
-    '<div style="width:22px;height:3px;background:#6c63ff;border-radius:2px;position:relative;">'+
-    '<div style="position:absolute;left:0;top:-13px;width:0;height:0;border-left:14px solid #6c63ff;border-top:9px solid transparent;border-bottom:9px solid transparent;"></div>'+
+  var flagHtml='<div style="display:flex;flex-direction:column;align-items:center;transform:translate(-4px,-40px)">'+
+    '<div style="width:26px;height:4px;background:#facc15;border-radius:2px;position:relative;">'+
+    '<div style="position:absolute;left:0;top:-15px;width:0;height:0;border-left:18px solid #facc15;border-top:11px solid transparent;border-bottom:11px solid transparent;"></div>'+
     '</div>'+
-    '<div style="width:3px;height:22px;background:#6c63ff;border-radius:2px;margin-top:-1px;"></div>'+
+    '<div style="width:4px;height:26px;background:#facc15;border-radius:2px;margin-top:-1px;"></div>'+
     '</div>';
-  var iD=L.divIcon({className:'',html:flagHtml,iconSize:[30,40],iconAnchor:[4,36]});
+  var iD=L.divIcon({className:'',html:flagHtml,iconSize:[36,44],iconAnchor:[4,40]});
   L.marker(rotaCoords[rotaCoords.length-1],{icon:iD}).addTo(navMap);
 
-  // Seta estilo Waze
+  // Seta grande estilo Waze
   var angle=calcAngle(rotaCoords,0);
   var arrowHtml=criarSetaHTML(angle);
-  var iC=L.divIcon({className:'',html:arrowHtml,iconSize:[40,40],iconAnchor:[20,20]});
+  var iC=L.divIcon({className:'',html:arrowHtml,iconSize:[60,60],iconAnchor:[30,30]});
   if(nMarker)navMap.removeLayer(nMarker);
   nMarker=L.marker(rotaCoords[0],{icon:iC}).addTo(navMap);
 
@@ -882,24 +903,24 @@ function togglePlay(){
       var pos=rotaCoords[navIdx];
       var angle=calcAngle(rotaCoords,navIdx);
       var arrowHtml=criarSetaHTML(angle);
-      var iC=L.divIcon({className:'',html:arrowHtml,iconSize:[40,40],iconAnchor:[20,20]});
+      var iC=L.divIcon({className:'',html:arrowHtml,iconSize:[60,60],iconAnchor:[30,30]});
       nMarker.setIcon(iC);
       nMarker.setLatLng(pos);
-      // Câmera estilo Waze — zoom próximo, levemente à frente
-      var zoom=travarNorte?17:17;
-      if(!travarNorte && navIdx+5<rotaCoords.length){
-        // Centraliza entre posição atual e ponto à frente para ver mais da rota
-        var ahead=rotaCoords[Math.min(navIdx+8,rotaCoords.length-1)];
-        var midLat=(pos[0]+ahead[0])/2;
-        var midLng=(pos[1]+ahead[1])/2;
-        navMap.setView([midLat,midLng],17,{animate:true,duration:0.3});
-      } else {
-        navMap.setView(pos,17,{animate:true,duration:0.3});
-      }
+
+      // Câmera estilo Waze — seta fica na parte inferior da tela
+      var ahead=rotaCoords[Math.min(navIdx+12,rotaCoords.length-1)];
+      var camLat=pos[0]+(pos[0]-ahead[0])*0.3;
+      var camLng=pos[1]+(pos[1]-ahead[1])*0.3;
+      navMap.setView([camLat,camLng],18,{animate:true,duration:0.25});
+
+      // Atualizar distância próxima curva (simplificado)
       var pct=Math.round(navIdx/(rotaCoords.length-1)*100);
       document.getElementById('nav-pb').style.width=pct+'%';
       var kmRest=((1-pct/100)*(dadosRota?.distKm||0)).toFixed(1);
       document.getElementById('nav-dist').textContent='Restam: '+kmRest+' km';
+      var minRest=Math.round((1-pct/100)*(dadosRota?.calcData?.duracao_total_min||0));
+      document.getElementById('nav-eta').textContent='Chegada em ~'+minRest+' min';
+      document.getElementById('nav-next-dist').textContent=kmRest+' km';
     },80);
   }
 }
