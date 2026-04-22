@@ -834,10 +834,19 @@ function decodeFP(encoded) {
 }
 
 // ── NAVIGATION ──
+function calcCamOffset(pos, idx){
+  // Offset: centraliza a câmera à frente da seta para ela aparecer na parte inferior
+  var ahead=rotaCoords[Math.min(idx+20,rotaCoords.length-1)];
+  var dLat=ahead[0]-pos[0];
+  var dLng=ahead[1]-pos[1];
+  // Centro da câmera = posição atual + vetor em direção ao destino
+  return[pos[0]+dLat*0.6, pos[1]+dLng*0.6];
+}
+
 function abrirNav(){
   if(!rotaCoords.length){toast('Calcule uma rota primeiro!');return;}
   document.getElementById('nav-overlay').classList.add('show');
-  navIdx=0;navPlaying=false;
+  navIdx=0;navPlaying=false;modo3D=false;
   document.getElementById('nav-play').textContent='▶ Iniciar';
   document.getElementById('nav-pb').style.width='0%';
   document.getElementById('nav-dist').textContent='Rota: '+(dadosRota?.distKm||'?')+' km';
@@ -846,18 +855,22 @@ function abrirNav(){
   document.getElementById('nav-next-street').textContent='Navegação iniciada';
 
   if(!navMap){
-    // Tile escuro estilo Waze/noturno
     navMap=L.map('nav-map',{zoomControl:false,attributionControl:false,dragging:false,scrollWheelZoom:false});
     L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{maxZoom:19,subdomains:'abcd'}).addTo(navMap);
   }
-  // Câmera: posicionar com offset para seta ficar na parte inferior (30% do topo)
-  navMap.setView(rotaCoords[0],18);
-  setTimeout(()=>navMap.invalidateSize(),100);
+
+  var camPos=calcCamOffset(rotaCoords[0],0);
+  navMap.setView(camPos,18);
+  setTimeout(()=>{
+    navMap.invalidateSize();
+    // Ativar 3D automaticamente como Waze
+    toggle3D();
+  },150);
 
   if(nPolyline)navMap.removeLayer(nPolyline);
   nPolyline=L.polyline(rotaCoords,{color:'#48bfe3',weight:8,opacity:0.95}).addTo(navMap);
 
-  // Bandeira no destino
+  // Bandeira amarela no destino
   var flagHtml='<div style="display:flex;flex-direction:column;align-items:center;transform:translate(-4px,-40px)">'+
     '<div style="width:26px;height:4px;background:#facc15;border-radius:2px;position:relative;">'+
     '<div style="position:absolute;left:0;top:-15px;width:0;height:0;border-left:18px solid #facc15;border-top:11px solid transparent;border-bottom:11px solid transparent;"></div>'+
@@ -907,11 +920,9 @@ function togglePlay(){
       nMarker.setIcon(iC);
       nMarker.setLatLng(pos);
 
-      // Câmera estilo Waze — seta fica na parte inferior da tela
-      var ahead=rotaCoords[Math.min(navIdx+12,rotaCoords.length-1)];
-      var camLat=pos[0]+(pos[0]-ahead[0])*0.3;
-      var camLng=pos[1]+(pos[1]-ahead[1])*0.3;
-      navMap.setView([camLat,camLng],18,{animate:true,duration:0.25});
+      // Câmera com offset: mostra rota à frente, seta fica na parte de baixo
+      var camPos=calcCamOffset(pos,navIdx);
+      navMap.setView(camPos,18,{animate:true,duration:0.25});
 
       // Atualizar distância próxima curva (simplificado)
       var pct=Math.round(navIdx/(rotaCoords.length-1)*100);
@@ -940,12 +951,12 @@ function toggle3D(){
   var m=document.getElementById('nav-map');
   var b=document.getElementById('btn3d');
   if(modo3D){
-    m.classList.add('tilt');
+    m.style.transform='perspective(600px) rotateX(40deg) scale(1.5)';
+    m.style.transformOrigin='bottom center';
     b.textContent='3D';b.style.color='#facc15';
-    toast('🌐 Modo 3D ativado');
   } else {
-    m.classList.remove('tilt');
-    b.textContent='2D';b.style.color='var(--accent2)';
+    m.style.transform='none';
+    b.textContent='2D';b.style.color='#48bfe3';
   }
   setTimeout(()=>{if(navMap)navMap.invalidateSize();},400);
 }
