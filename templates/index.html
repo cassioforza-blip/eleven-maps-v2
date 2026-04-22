@@ -833,14 +833,11 @@ function decodeFP(encoded) {
   return result;
 }
 
-// ── NAVIGATION ──
 function calcCamOffset(pos, idx){
-  // Offset: centraliza a câmera à frente da seta para ela aparecer na parte inferior
   var ahead=rotaCoords[Math.min(idx+20,rotaCoords.length-1)];
   var dLat=ahead[0]-pos[0];
   var dLng=ahead[1]-pos[1];
-  // Centro da câmera = posição atual + vetor em direção ao destino
-  return[pos[0]+dLat*0.6, pos[1]+dLng*0.6];
+  return[pos[0]+dLat*0.5, pos[1]+dLng*0.5];
 }
 
 function abrirNav(){
@@ -854,17 +851,27 @@ function abrirNav(){
   document.getElementById('nav-next-dist').textContent='Siga a rota';
   document.getElementById('nav-next-street').textContent='Navegação iniciada';
 
+  // Garantir que nav-map ocupa 100% sem transform
+  var nm=document.getElementById('nav-map');
+  nm.style.transform='none';
+  nm.style.position='absolute';
+  nm.style.inset='0';
+  nm.style.width='100%';
+  nm.style.height='100%';
+
   if(!navMap){
     navMap=L.map('nav-map',{zoomControl:false,attributionControl:false,dragging:false,scrollWheelZoom:false});
     L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{maxZoom:19,subdomains:'abcd'}).addTo(navMap);
   }
 
-  var camPos=calcCamOffset(rotaCoords[0],0);
-  navMap.setView(camPos,18);
   setTimeout(()=>{
     navMap.invalidateSize();
-    // Ativar 3D automaticamente como Waze
-    toggle3D();
+    // Centralizar na posição inicial com câmera deslocada para cima
+    // Isso faz a seta aparecer na parte inferior da tela
+    navMap.setView(rotaCoords[0],18);
+    // Deslocar câmera: mover 30% da altura para cima em pixels
+    var h=navMap.getSize().y;
+    navMap.panBy([0, -Math.round(h*0.28)], {animate:false});
   },150);
 
   if(nPolyline)navMap.removeLayer(nPolyline);
@@ -920,9 +927,12 @@ function togglePlay(){
       nMarker.setIcon(iC);
       nMarker.setLatLng(pos);
 
-      // Câmera com offset: mostra rota à frente, seta fica na parte de baixo
-      var camPos=calcCamOffset(pos,navIdx);
-      navMap.setView(camPos,18,{animate:true,duration:0.25});
+      // Câmera: centraliza na posição e desloca para cima em pixels
+      // Resultado: seta fica na parte inferior da tela
+      var h=navMap.getSize().y;
+      var offset=Math.round(h*0.28);
+      navMap.setView(pos,18,{animate:true,duration:0.2});
+      setTimeout(()=>navMap.panBy([0,-offset],{animate:false}),50);
 
       // Atualizar distância próxima curva (simplificado)
       var pct=Math.round(navIdx/(rotaCoords.length-1)*100);
@@ -948,17 +958,15 @@ function resetNav(){
 
 function toggle3D(){
   modo3D=!modo3D;
-  var m=document.getElementById('nav-map');
   var b=document.getElementById('btn3d');
   if(modo3D){
-    m.style.transform='perspective(600px) rotateX(40deg) scale(1.5)';
-    m.style.transformOrigin='bottom center';
     b.textContent='3D';b.style.color='#facc15';
+    if(navMap)navMap.setZoom(19,{animate:true});
+    toast('🌐 Zoom aproximado');
   } else {
-    m.style.transform='none';
     b.textContent='2D';b.style.color='#48bfe3';
+    if(navMap)navMap.setZoom(17,{animate:true});
   }
-  setTimeout(()=>{if(navMap)navMap.invalidateSize();},400);
 }
 
 // ── UTILS ──
