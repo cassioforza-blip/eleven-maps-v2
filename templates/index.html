@@ -653,17 +653,17 @@ async function calcularRota(){
     desenharRota(geo,distKm);
 
     // Stats
-    document.getElementById('sv-dist').textContent=distKm+' km';
-    document.getElementById('sv-time').textContent=calcData.duracao_total_min+' min';
-    document.getElementById('sv-traf').textContent=trafficStatus;
-    document.getElementById('sv-sem').textContent=calcData.semaforos?.semaforos||0;
+    document.getElementById('s-dist').textContent=distKm+' km';
+    document.getElementById('s-total').textContent=calcData.duracao_total_min+' min';
+    document.getElementById('s-trans').textContent=trafficStatus;
+    document.getElementById('s-semaf').textContent=calcData.semaforos?.semaforos||0;
     document.getElementById('stats').style.display='grid';
 
     // Time breakdown
     document.getElementById('tb-base').textContent=calcData.duracao_base_min+' min';
-    document.getElementById('tb-traf').textContent=(calcData.duracao_transito_min-calcData.duracao_base_min)+' min';
+    document.getElementById('tb-trans').textContent=(calcData.duracao_transito_min-calcData.duracao_base_min)+' min';
     document.getElementById('tb-sem').textContent=(calcData.semaforos?.atraso_min||0)+' min';
-    document.getElementById('tb-total').textContent=calcData.duracao_total_min+' min';
+    document.getElementById('tb-tot').textContent=calcData.duracao_total_min+' min';
     document.getElementById('tbreak').className='tbreak show';
 
     document.getElementById('rn-o').textContent=geo.origem.nome;
@@ -711,30 +711,55 @@ function desenharRota(geo,distKm){
   },100);
 }
 
-// ── FLEXIBLE POLYLINE DECODER ──
+// ── FLEXIBLE POLYLINE DECODER (HERE Maps) ──
 function decodeFP(encoded){
-  var result=[];
   try{
-    if(typeof flexi!=='undefined'){return flexi.decode(encoded).polyline||[];}
-    // Manual decode
-    var i=0,lat=0,lng=0;
-    function decodeVal(){
-      var r=0,s=0,b;
-      do{b=encoded.charCodeAt(i++)-63;r|=(b&0x1f)<<s;s+=5;}while(b>=0x20);
-      return(r&1)?~(r>>1):(r>>1);
+    // Usar biblioteca flexpolyline se disponível
+    if(typeof window.decode==='function'){
+      var r=window.decode(encoded);
+      return r.polyline||[];
     }
+    // Decoder manual HERE flexible polyline
+    var result=[];
+    var i=0;
+    var header=decodeUnsignedVarint();
+    var precision=header&15;
+    var type=(header>>4)&15;
+    var factor=Math.pow(10,precision);
+    var lat=0,lng=0;
+
+    function decodeUnsignedVarint(){
+      var val=0,shift=0,b;
+      do{
+        b=decodeChar(encoded.charCodeAt(i++));
+        val|=(b&0x1f)<<shift;
+        shift+=5;
+      }while(b>=0x20);
+      return val;
+    }
+    function decodeSignedVarint(){
+      var val=decodeUnsignedVarint();
+      return(val&1)?~(val>>1):(val>>1);
+    }
+    function decodeChar(c){
+      if(c>=65&&c<=90)return c-65;     // A-Z → 0-25
+      if(c>=97&&c<=122)return c-97+26; // a-z → 26-51
+      if(c>=48&&c<=57)return c-48+52;  // 0-9 → 52-61
+      if(c===45)return 62;             // -
+      if(c===95)return 63;             // _
+      throw new Error('Invalid char: '+c);
+    }
+
     while(i<encoded.length){
-      lat+=decodeVal();lng+=decodeVal();
-      result.push([lat/1e5,lng/1e5]);
+      lat+=decodeSignedVarint();
+      lng+=decodeSignedVarint();
+      result.push([lat/factor,lng/factor]);
     }
+    return result;
   }catch(e){
-    // Tentar com flexpolyline global
-    try{
-      var dec=Object.keys(window).find(k=>window[k]&&window[k].decode);
-      if(dec)result=window[dec].decode(encoded).polyline||[];
-    }catch(e2){}
+    console.error('decodeFP error:',e);
+    return[];
   }
-  return result;
 }
 
 // ── NAVEGAÇÃO ──
