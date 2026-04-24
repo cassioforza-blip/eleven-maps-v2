@@ -305,8 +305,8 @@
     .ibtn{margin-left:auto;background:var(--accent);color:#fff;border:none;border-radius:6px;padding:4px 10px;font-family:'Syne',sans-serif;font-size:0.67rem;font-weight:700;cursor:pointer;}
 
     /* MAP */
-    .mapwrap{flex:1;position:relative;overflow:hidden;min-height:0;}
-    #map{position:absolute!important;top:0!important;left:0!important;right:0!important;bottom:0!important;width:100%!important;height:100%!important;background:#e8f4f8;}
+    .mapwrap{flex:1;display:flex;flex-direction:column;overflow:hidden;min-height:0;}
+    #map{flex:1;width:100%;min-height:0;background:#e8f4f8;}
 
     /* NAV FULLSCREEN WAZE-STYLE */
     #nav-overlay{display:none;position:fixed;inset:0;z-index:2000;background:#0d0f14;}
@@ -360,7 +360,7 @@
       .layout{flex-direction:column-reverse;}
       .panel{width:100%;min-width:100%;height:auto;max-height:55vh;border-right:none;border-top:1px solid var(--border);box-shadow:0 -4px 20px rgba(0,0,0,0.1);overflow-y:auto;}
       .panel.hidden{display:none;}
-      .mapwrap{flex:1;min-height:0;height:45vh;}
+      .mapwrap{flex:1;min-height:0;}
       .tpanel{display:flex!important;}
       .pi{padding:0.85rem;}
       .stats{grid-template-columns:1fr 1fr 1fr 1fr;}
@@ -625,33 +625,21 @@ function getTileUrl(){
 
 window.addEventListener('load',function(){
   function criarLeaflet(){
-    // Forçar altura explícita no container do mapa
-    var header=document.querySelector('header');
-    var headerH=header?header.offsetHeight:58;
-    var mapwrap=document.querySelector('.mapwrap');
-    var dispH=window.innerHeight-headerH;
-    mapwrap.style.height=dispH+'px';
-    var el=document.getElementById('map');
-    el.style.width=mapwrap.offsetWidth+'px';
-    el.style.height=dispH+'px';
-
     leafMap=L.map('map',{zoomControl:true,attributionControl:false,preferCanvas:true});
     L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',{
       maxZoom:19,subdomains:'abcd'
     }).addTo(leafMap);
     L.control.attribution({prefix:'© OpenStreetMap'}).addTo(leafMap);
     leafMap.setView([-23.55,-46.63],12);
-
-    window.addEventListener('resize',function(){
-      if(!leafMap)return;
-      var h2=window.innerHeight-(document.querySelector('header')?document.querySelector('header').offsetHeight:58);
-      mapwrap.style.height=h2+'px';
-      el.style.height=h2+'px';
-      leafMap.invalidateSize(true);
-    });
+    window.addEventListener('resize',function(){if(leafMap)leafMap.invalidateSize(true);});
     atualizarCasaUI();
   }
-  setTimeout(criarLeaflet,100);
+  // Aguardar DOM estar pronto
+  if(document.readyState==='complete'){
+    criarLeaflet();
+  } else {
+    window.addEventListener('load',criarLeaflet);
+  }
 });
 
 // ── PANEL ──
