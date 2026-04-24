@@ -8,7 +8,12 @@
   <meta name="apple-mobile-web-app-title" content="Eleven Maps"/>
   <link rel="manifest" href="/static/manifest.json"/>
   <title>Eleven Maps</title>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+  <!-- HERE Maps JS API para navegação 3D -->
+  <script src="https://js.api.here.com/v3/3.1/mapsjs-core.js"></script>
+  <script src="https://js.api.here.com/v3/3.1/mapsjs-service.js"></script>
+  <script src="https://js.api.here.com/v3/3.1/mapsjs-ui.js"></script>
+  <script src="https://js.api.here.com/v3/3.1/mapsjs-mapevents.js"></script>
+  <link rel="stylesheet" href="https://js.api.here.com/v3/3.1/mapsjs-ui.css"/>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/flexpolyline@1.0.0/src/flexpolyline.min.js"></script>
   <style>
@@ -969,6 +974,50 @@ function calcCamOffset(pos,idx){
   return[pos[0]+dLat*0.5,pos[1]+dLng*0.5];
 }
 
+// Variáveis HERE Maps JS
+var hereMapObj=null, herePlatform=null, hereBehavior=null;
+var hereMarkerSeta=null, herePolyline=null, hereMarkerDest=null;
+
+function iniciarHereMap(divId){
+  if(hereMapObj){
+    hereMapObj.dispose();
+    hereMapObj=null;herePlatform=null;hereBehavior=null;
+    hereMarkerSeta=null;herePolyline=null;hereMarkerDest=null;
+  }
+
+  herePlatform=new H.service.Platform({'apikey':HERE_KEY});
+  var defaultLayers=herePlatform.createDefaultLayers();
+
+  var hora=new Date().getHours();
+  var temaEscuro=hora>=18||hora<6;
+  var layer=temaEscuro
+    ?defaultLayers.vector.normal.traffic
+    :defaultLayers.vector.normal.map;
+
+  hereMapObj=new H.Map(
+    document.getElementById(divId),
+    layer,
+    {
+      zoom:17,
+      center:{lat:rotaCoords[0][0],lng:rotaCoords[0][1]},
+      pixelRatio:window.devicePixelRatio||1
+    }
+  );
+
+  // Inclinar mapa em perspectiva 3D (pitch = 60°)
+  hereMapObj.getViewModel().setLookAtData({
+    position:{lat:rotaCoords[0][0],lng:rotaCoords[0][1]},
+    zoom:17,
+    tilt:60,   // inclinação real estilo Waze
+    heading:0
+  });
+
+  // Resize automático
+  window.addEventListener('resize',function(){if(hereMapObj)hereMapObj.getViewPort().resize();});
+
+  return hereMapObj;
+}
+
 function abrirNav(){
   if(!rotaCoords.length){toast('Calcule uma rota primeiro!');return;}
   document.getElementById('nav-overlay').classList.add('show');
@@ -980,41 +1029,64 @@ function abrirNav(){
   document.getElementById('nav-eta-time').textContent='—';
   document.getElementById('nav-eta-min').textContent='—';
 
+  // Limpar Leaflet se existir
   if(navMap){navMap.remove();navMap=null;nPolyline=null;nMarker=null;}
 
   setTimeout(function(){
     var nm=document.getElementById('nav-map');
     nm.style.cssText='position:absolute;inset:0;width:100%;height:100%;z-index:1;';
-    navMap=L.map('nav-map',{
-      zoomControl:false,
-      attributionControl:false,
-      dragging:false,
-      scrollWheelZoom:false,
-      tap:false,
-      rotate:false  // MAPA NÃO GIRA — apenas a seta gira
-    });
 
-    // Tile principal escuro com fallback para tiles claros
-    var hora=new Date().getHours();
-    var temaEscuro=hora>=18||hora<6;
-    var tileUrl=temaEscuro
-      ?'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
-      :'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
-    L.tileLayer(tileUrl,{
-      maxZoom:19,
-      subdomains:'abcd',
-      crossOrigin:true,
-      errorTileUrl:'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='
-    }).addTo(navMap);
-    navMap.setView(rotaCoords[0],18);
-    nPolyline=L.polyline(rotaCoords,{color:'#48bfe3',weight:8,opacity:0.95}).addTo(navMap);
-    var flagHtml='<div style="display:flex;flex-direction:column;align-items:center;transform:translate(-4px,-40px)"><div style="width:26px;height:4px;background:#facc15;border-radius:2px;position:relative;"><div style="position:absolute;left:0;top:-15px;width:0;height:0;border-left:18px solid #facc15;border-top:11px solid transparent;border-bottom:11px solid transparent;"></div></div><div style="width:4px;height:26px;background:#facc15;border-radius:2px;margin-top:-1px;"></div></div>';
-    L.marker(rotaCoords[rotaCoords.length-1],{icon:L.divIcon({className:'',html:flagHtml,iconSize:[36,44],iconAnchor:[4,40]})}).addTo(navMap);
-    var iC=L.divIcon({className:'',html:criarSetaHTML(calcAngle(rotaCoords,0)),iconSize:[60,60],iconAnchor:[30,30]});
-    nMarker=L.marker(rotaCoords[0],{icon:iC}).addTo(navMap);
+    // Iniciar HERE Maps JS
+    var hMap=iniciarHereMap('nav-map');
+
+    // Desenhar rota
+    var lineString=new H.geo.LineString();
+    rotaCoords.forEach(function(c){lineString.pushLatLngAlt(c[0],c[1],0);});
+    herePolyline=new H.map.Polyline(lineString,{
+      style:{strokeColor:'#48bfe3',lineWidth:8,lineTailCap:'arrow-head',lineHeadCap:'arrow-head'}
+    });
+    hMap.addObject(herePolyline);
+
+    // Bandeira no destino
+    var destIcon=new H.map.Icon(
+      '<svg width="36" height="48" viewBox="0 0 36 48" xmlns="http://www.w3.org/2000/svg">'+
+      '<rect x="2" y="2" width="3" height="44" fill="#facc15" rx="1"/>'+
+      '<polygon points="5,4 30,12 5,20" fill="#facc15"/>'+
+      '</svg>',
+      {size:{w:36,h:48},anchor:{x:2,y:46}}
+    );
+    var dest=rotaCoords[rotaCoords.length-1];
+    hereMarkerDest=new H.map.Marker({lat:dest[0],lng:dest[1]},{icon:destIcon});
+    hMap.addObject(hereMarkerDest);
+
+    // Seta de navegação
+    var setaIcon=new H.map.Icon(
+      '<svg width="54" height="54" viewBox="0 0 54 54" xmlns="http://www.w3.org/2000/svg">'+
+      '<polygon points="27,4 45,46 27,36 9,46" fill="#48bfe3" stroke="#ffffff" stroke-width="2.5" stroke-linejoin="round"/>'+
+      '</svg>',
+      {size:{w:54,h:54},anchor:{x:27,y:27}}
+    );
+    hereMarkerSeta=new H.map.Marker({lat:rotaCoords[0][0],lng:rotaCoords[0][1]},{icon:setaIcon});
+    hMap.addObject(hereMarkerSeta);
+
+    // Guardar referência para uso no GPS
+    navMap={
+      _here:hMap,
+      _isHere:true,
+      getSize:function(){return{y:nm.clientHeight};},
+      invalidateSize:function(){hMap.getViewPort().resize();},
+      setView:function(pos,zoom){
+        hMap.getViewModel().setLookAtData({
+          position:{lat:pos[0],lng:pos[1]},
+          zoom:zoom||17,
+          tilt:modo3D?60:0,
+          heading:0
+        });
+      }
+    };
+
     setTimeout(function(){
-      navMap.invalidateSize(true);
-      navMap.setView(rotaCoords[0],18);
+      hMap.getViewPort().resize();
       iniciarGPS();
     },300);
   },200);
@@ -1023,8 +1095,12 @@ function abrirNav(){
 function fecharNav(){
   document.getElementById('nav-overlay').classList.remove('show');
   pararGPS();navPlaying=false;modo3D=false;
-  var nm=document.getElementById('nav-map');
-  if(nm){nm.style.transform='none';}
+  // Limpar HERE Maps
+  if(navMap&&navMap._isHere){
+    navMap._here.dispose();
+  }
+  navMap=null;nPolyline=null;nMarker=null;
+  hereMapObj=null;hereMarkerSeta=null;herePolyline=null;hereMarkerDest=null;
   var b=document.getElementById('btn3d');
   if(b){b.textContent='2D';b.style.color='#48bfe3';}
 }
@@ -1101,17 +1177,27 @@ function iniciarGPS(){
     }
     ultimoAngle=angle;
 
-    // Atualizar marcador
-    var iC=L.divIcon({className:'',html:criarSetaHTML(angle),iconSize:[60,60],iconAnchor:[30,30]});
-    if(nMarker){nMarker.setIcon(iC);nMarker.setLatLng([lat,lng]);}
-
-    // Câmera sem panBy — offset calculado em graus
-    var latRad=lat*Math.PI/180;
-    var zoomAtual=navMap.getZoom();
-    var mpp=156543.03392*Math.cos(latRad)/Math.pow(2,zoomAtual);
-    var mapH=navMap.getSize().y;
-    var offsetGraus=(mpp*mapH*0.3)/111320;
-    navMap.setView([lat+offsetGraus,lng],zoomAtual,{animate:false});
+    // Atualizar marcador e câmera HERE Maps
+    if(navMap&&navMap._isHere&&hereMarkerSeta){
+      hereMarkerSeta.setGeometry({lat:lat,lng:lng});
+      // Câmera com heading real e pitch 3D
+      navMap._here.getViewModel().setLookAtData({
+        position:{lat:lat,lng:lng},
+        zoom:modo3D?18:17,
+        tilt:modo3D?60:0,
+        heading:angle  // Mapa GIRA conforme direção — igual ao Waze
+      },{animate:true});
+    } else if(navMap&&!navMap._isHere){
+      // Fallback Leaflet
+      var iC=L.divIcon({className:'',html:criarSetaHTML(angle),iconSize:[70,70],iconAnchor:[35,35]});
+      if(nMarker){nMarker.setIcon(iC);nMarker.setLatLng([lat,lng]);}
+      var latRad=lat*Math.PI/180;
+      var zoomAtual=navMap.getZoom?navMap.getZoom():17;
+      var mpp=156543.03392*Math.cos(latRad)/Math.pow(2,zoomAtual);
+      var mapH=navMap.getSize().y;
+      var offsetGraus=(mpp*mapH*0.3)/111320;
+      navMap.setView([lat+offsetGraus,lng],zoomAtual,{animate:false});
+    }
 
     // Distância para o destino (mais preciso que acumular)
     if(ultimaPosGPS){
@@ -1190,18 +1276,18 @@ function iniciarGPS(){
 function toggle3D(){
   modo3D=!modo3D;
   var b=document.getElementById('btn3d');
-  var nm=document.getElementById('nav-map');
-  // Sempre manter o nav-map sem transform para evitar área preta
-  nm.style.cssText='position:absolute;inset:0;width:100%;height:100%;z-index:1;';
   if(modo3D){
     b.textContent='3D';b.style.color='#facc15';
-    // Simular 3D com zoom máximo — sem distorção CSS
-    if(navMap){navMap.setZoom(19,{animate:true});}
+    if(navMap&&navMap._isHere){
+      navMap._here.getViewModel().setLookAtData({tilt:60,zoom:18},{animate:true});
+    }
+    toast('🌐 3D ativado');
   } else {
     b.textContent='2D';b.style.color='#48bfe3';
-    if(navMap){navMap.setZoom(17,{animate:true});}
+    if(navMap&&navMap._isHere){
+      navMap._here.getViewModel().setLookAtData({tilt:0,zoom:17},{animate:true});
+    }
   }
-  setTimeout(function(){if(navMap)navMap.invalidateSize(true);},300);
 }
 
 // ── UTILS ──
