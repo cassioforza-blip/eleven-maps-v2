@@ -552,8 +552,8 @@
         </div>
       </div>
 
-      <!-- NOME DA RUA ATUAL embaixo da seta -->
-      <div id="nav-street-label" style="position:absolute;bottom:180px;left:50%;transform:translateX(-50%);z-index:10;background:rgba(20,24,40,0.9);border-radius:20px;padding:5px 16px;white-space:nowrap;box-shadow:0 2px 12px rgba(0,0,0,0.5);pointer-events:none;">
+      <!-- NOME DA RUA ATUAL — aparece ACIMA da seta, não em cima dela -->
+      <div id="nav-street-label" style="position:absolute;bottom:210px;left:50%;transform:translateX(-50%);z-index:10;background:rgba(10,12,20,0.85);border-radius:20px;padding:5px 18px;white-space:nowrap;box-shadow:0 2px 16px rgba(0,0,0,0.6);pointer-events:none;backdrop-filter:blur(8px);">
         <span id="nav-current-street" style="font-size:0.76rem;font-weight:600;color:#e8eaf0;letter-spacing:0.3px;">—</span>
       </div>
 
@@ -616,15 +616,27 @@ function tick(){
 tick(); setInterval(tick,1000);
 
 // ── MAP INIT ──
+function getTileUrl(){
+  var h=new Date().getHours();
+  return(h>=18||h<6)
+    ?'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+    :'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
+}
+
 window.addEventListener('load',function(){
   leafMap=L.map('map',{zoomControl:true,attributionControl:false}).setView([-23.55,-46.63],12);
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-    maxZoom: 19,
-    subdomains: 'abcd',
-    attribution: '© OpenStreetMap © CARTO'
+  L.tileLayer(getTileUrl(),{
+    maxZoom:19,subdomains:'abcd',
+    errorTileUrl:'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVQI12NgAAIABQAABjE+ibYAAAAASUVORK5CYII='
   }).addTo(leafMap);
   L.control.attribution({prefix:'© OpenStreetMap'}).addTo(leafMap);
   atualizarCasaUI();
+
+  // Verificar mudança de tema a cada 10 minutos
+  setInterval(function(){
+    var novoUrl=getTileUrl();
+    leafMap.eachLayer(function(l){if(l._url&&l._url!==novoUrl){l.setUrl(novoUrl);}});
+  },600000);
 });
 
 // ── PANEL ──
@@ -721,11 +733,12 @@ function calcAngle(coords,idx){
   return Math.atan2(dx,dy)*(180/Math.PI);
 }
 function criarSetaHTML(angle){
-  return'<div style="width:60px;height:60px;display:flex;align-items:center;justify-content:center;">'+
-    '<div style="transform:rotate('+angle+'deg);filter:drop-shadow(0 0 8px #48bfe3) drop-shadow(0 0 3px #000);">'+
-    '<svg width="52" height="52" viewBox="0 0 52 52" fill="none" xmlns="http://www.w3.org/2000/svg">'+
-    '<polygon points="26,3 44,44 26,34 8,44" fill="#48bfe3" stroke="#fff" stroke-width="3" stroke-linejoin="round"/>'+
-    '<circle cx="26" cy="26" r="5" fill="#fff" opacity="0.6"/>'+
+  // A seta gira via CSS transform — o MAPA permanece fixo (norte sempre para cima)
+  return '<div style="width:70px;height:70px;display:flex;align-items:center;justify-content:center;position:relative;">'+
+    '<div style="position:absolute;transform:rotate('+angle+'deg);transform-origin:center center;transition:transform 0.3s ease;">'+
+    '<svg width="54" height="54" viewBox="0 0 54 54" fill="none" xmlns="http://www.w3.org/2000/svg">'+
+    '<filter id="glow"><feGaussianBlur stdDeviation="2" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>'+
+    '<polygon points="27,4 45,46 27,36 9,46" fill="#48bfe3" stroke="#ffffff" stroke-width="2.5" stroke-linejoin="round" filter="url(#glow)"/>'+
     '</svg></div></div>';
 }
 
@@ -978,8 +991,27 @@ function abrirNav(){
   setTimeout(function(){
     var nm=document.getElementById('nav-map');
     nm.style.cssText='position:absolute;inset:0;width:100%;height:100%;z-index:1;';
-    navMap=L.map('nav-map',{zoomControl:false,attributionControl:false,dragging:false,scrollWheelZoom:false,tap:false});
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{maxZoom:19,subdomains:'abcd'}).addTo(navMap);
+    navMap=L.map('nav-map',{
+      zoomControl:false,
+      attributionControl:false,
+      dragging:false,
+      scrollWheelZoom:false,
+      tap:false,
+      rotate:false  // MAPA NÃO GIRA — apenas a seta gira
+    });
+
+    // Tile principal escuro com fallback para tiles claros
+    var hora=new Date().getHours();
+    var temaEscuro=hora>=18||hora<6;
+    var tileUrl=temaEscuro
+      ?'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+      :'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
+    L.tileLayer(tileUrl,{
+      maxZoom:19,
+      subdomains:'abcd',
+      crossOrigin:true,
+      errorTileUrl:'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='
+    }).addTo(navMap);
     navMap.setView(rotaCoords[0],18);
     nPolyline=L.polyline(rotaCoords,{color:'#48bfe3',weight:8,opacity:0.95}).addTo(navMap);
     var flagHtml='<div style="display:flex;flex-direction:column;align-items:center;transform:translate(-4px,-40px)"><div style="width:26px;height:4px;background:#facc15;border-radius:2px;position:relative;"><div style="position:absolute;left:0;top:-15px;width:0;height:0;border-left:18px solid #facc15;border-top:11px solid transparent;border-bottom:11px solid transparent;"></div></div><div style="width:4px;height:26px;background:#facc15;border-radius:2px;margin-top:-1px;"></div></div>';
@@ -1115,8 +1147,17 @@ function iniciarGPS(){
       if(distMinRota>0.08){
         recalculando=true;
         toast('🔄 Fora da rota! Recalculando...');
-        document.getElementById('origem').value=lat.toFixed(6)+','+lng.toFixed(6);
-        setTimeout(function(){calcularRota().then(function(){recalculando=false;}).catch(function(){recalculando=false;});},1500);
+        setTimeout(function(){
+          calcularRota().then(function(){
+            // Atualizar polyline no mapa de navegação
+            if(navMap&&nPolyline){
+              navMap.removeLayer(nPolyline);
+              nPolyline=L.polyline(rotaCoords,{color:'#48bfe3',weight:8,opacity:0.95}).addTo(navMap);
+            }
+            recalculando=false;
+            toast('✅ Rota atualizada!');
+          }).catch(function(){recalculando=false;});
+        },1500);
       }
     }
 
