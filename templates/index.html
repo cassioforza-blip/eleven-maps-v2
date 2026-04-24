@@ -381,7 +381,7 @@
           </div>
           <!-- botões -->
           <div style="display:flex;flex-direction:column;gap:6px;">
-            <button id="nav-play" onclick="togglePlay()" style="background:linear-gradient(135deg,#6c63ff,#48bfe3);color:#fff;border:none;border-radius:10px;padding:8px 14px;font-family:'Syne',sans-serif;font-weight:700;font-size:0.78rem;cursor:pointer;">▶ Iniciar</button>
+            <button id="nav-play" onclick="togglePlay()" style="background:linear-gradient(135deg,#6c63ff,#48bfe3);color:#fff;border:none;border-radius:10px;padding:8px 14px;font-family:'Syne',sans-serif;font-weight:700;font-size:0.78rem;cursor:pointer;display:none;">▶ Iniciar GPS</button>
             <div style="display:flex;gap:5px;">
               <button id="btn3d" onclick="toggle3D()" style="flex:1;background:rgba(34,38,58,0.9);color:#48bfe3;border:1px solid #2a2d42;border-radius:8px;padding:5px;font-family:'Syne',sans-serif;font-weight:700;font-size:0.72rem;cursor:pointer;">2D</button>
               <button id="btn-norte" onclick="toggleNorte()" style="flex:1;background:rgba(34,38,58,0.9);color:#facc15;border:1px solid #2a2d42;border-radius:8px;padding:5px;font-size:0.8rem;cursor:pointer;">🧭</button>
@@ -899,61 +899,151 @@ function abrirNav(){
 
 function fecharNav(){
   document.getElementById('nav-overlay').classList.remove('show');
-  if(navTimer){clearInterval(navTimer);navTimer=null;}
+  pararGPS();
   navPlaying=false;
-  if(modo3D){toggle3D();}
+  modo3D=false;
+  document.getElementById('btn3d').textContent='2D';
+  document.getElementById('btn3d').style.color='#48bfe3';
+}
+
+// ── GPS REAL ──
+var gpsWatchId=null;
+var gpsAtivo=false;
+var distTotalPercorrida=0;
+var ultimaPosGPS=null;
+
+function pararGPS(){
+  if(gpsWatchId!==null){
+    navigator.geolocation.clearWatch(gpsWatchId);
+    gpsWatchId=null;
+  }
+  gpsAtivo=false;
+}
+
+function iniciarGPS(){
+  if(!navigator.geolocation){
+    toast('❌ GPS não disponível neste dispositivo');
+    return;
+  }
+  gpsAtivo=true;
+  distTotalPercorrida=0;
+  ultimaPosGPS=null;
+  navPlaying=true;
+  document.getElementById('nav-play').style.display='none'; // esconde botão iniciar — GPS é automático
+
+  toast('📡 Aguardando sinal GPS...');
+
+  gpsWatchId=navigator.geolocation.watchPosition(
+    function(pos){
+      var lat=pos.coords.latitude;
+      var lng=pos.coords.longitude;
+      var speed=pos.coords.speed; // m/s
+      var heading=pos.coords.heading; // graus 0-360
+
+      // Velocidade
+      var kmh=speed!=null&&speed>=0?Math.round(speed*3.6):0;
+      document.getElementById('nav-spd').textContent=kmh;
+
+      // Seta — usar heading real do GPS se disponível
+      var angle=0;
+      if(heading!=null&&!isNaN(heading)){
+        angle=heading;
+      } else {
+        // Fallback: calcular direção pela posição anterior
+        if(ultimaPosGPS){
+          var dy=lat-ultimaPosGPS[0];
+          var dx=lng-ultimaPosGPS[1];
+          angle=Math.atan2(dx,dy)*(180/Math.PI);
+        }
+      }
+
+      var arrowHtml=criarSetaHTML(angle);
+      var iC=L.divIcon({className:'',html:arrowHtml,iconSize:[60,60],iconAnchor:[30,30]});
+      if(nMarker){
+        nMarker.setIcon(iC);
+        nMarker.setLatLng([lat,lng]);
+      }
+
+      // Câmera: seta na parte inferior da tela
+      navMap.setView([lat,lng],18,{animate:true,duration:0.5});
+      var h=navMap.getSize().y;
+      setTimeout(()=>navMap.panBy([0,-Math.round(h*0.3)],{animate:false}),100);
+
+      // Distância percorrida
+      if(ultimaPosGPS){
+        var d=calcDistancia(ultimaPosGPS[0],ultimaPosGPS[1],lat,lng);
+        distTotalPercorrida+=d;
+      }
+      ultimaPosGPS=[lat,lng];
+
+      // Progresso na rota
+      var distTotal=dadosRota?.distKm||1;
+      var pct=Math.min(100,Math.round((distTotalPercorrida/distTotal)*100));
+      document.getElementById('nav-pb').style.width=pct+'%';
+
+      var kmRest=Math.max(0,distTotal-distTotalPercorrida).toFixed(1);
+      document.getElementById('nav-dist').textContent='Restam: '+kmRest+' km';
+
+      var minTot=dadosRota?.calcData?.duracao_total_min||0;
+      var minRest=Math.max(0,Math.round(minTot*(1-pct/100)));
+      document.getElementById('nav-eta').textContent='Chegada em ~'+minRest+' min';
+      document.getElementById('nav-next-dist').textContent=kmRest+' km';
+
+      // Verificar chegada (dentro de 50m do destino)
+      if(rotaCoords.length){
+        var dest=rotaCoords[rotaCoords.length-1];
+        var distDest=calcDistancia(lat,lng,dest[0],dest[1]);
+        if(distDest<0.05){
+          toast('🎉 Você chegou ao destino!');
+          pararGPS();
+          document.getElementById('nav-pb').style.width='100%';
+          document.getElementById('nav-play').style.display='block';
+          document.getElementById('nav-play').textContent='✓ Chegou!';
+        }
+      }
+    },
+    function(err){
+      var msgs={1:'GPS bloqueado. Permita o acesso à localização.',2:'Sinal GPS fraco. Tente ao ar livre.',3:'GPS demorou muito. Tente novamente.'};
+      toast('⚠️ '+( msgs[err.code]||'Erro de GPS'));
+      document.getElementById('nav-play').style.display='block';
+    },
+    {enableHighAccuracy:true, maximumAge:1000, timeout:10000}
+  );
+}
+
+function calcDistancia(lat1,lng1,lat2,lng2){
+  // Haversine — retorna km
+  var R=6371;
+  var dLat=(lat2-lat1)*Math.PI/180;
+  var dLng=(lng2-lng1)*Math.PI/180;
+  var a=Math.sin(dLat/2)*Math.sin(dLat/2)+
+    Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*
+    Math.sin(dLng/2)*Math.sin(dLng/2);
+  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
 }
 
 function togglePlay(){
-  if(navPlaying){
-    clearInterval(navTimer);navTimer=null;navPlaying=false;
-    document.getElementById('nav-play').textContent='▶ Continuar';
+  // Mantido apenas para o botão de reset/retomar se GPS parar
+  if(gpsAtivo){
+    pararGPS();
+    document.getElementById('nav-play').textContent='▶ Retomar GPS';
+    document.getElementById('nav-play').style.display='block';
   } else {
-    if(navIdx>=rotaCoords.length-1)resetNav();
-    navPlaying=true;
-    document.getElementById('nav-play').textContent='⏸ Pausar';
-    navTimer=setInterval(function(){
-      if(navIdx>=rotaCoords.length-1){
-        clearInterval(navTimer);navPlaying=false;
-        document.getElementById('nav-play').textContent='✓ Chegou!';
-        document.getElementById('nav-pb').style.width='100%';
-        toast('🎉 Destino atingido!');return;
-      }
-      navIdx++;
-      var pos=rotaCoords[navIdx];
-      var angle=calcAngle(rotaCoords,navIdx);
-      var arrowHtml=criarSetaHTML(angle);
-      var iC=L.divIcon({className:'',html:arrowHtml,iconSize:[60,60],iconAnchor:[30,30]});
-      nMarker.setIcon(iC);
-      nMarker.setLatLng(pos);
-
-      // Câmera: centraliza na posição e desloca para cima em pixels
-      // Resultado: seta fica na parte inferior da tela
-      var h=navMap.getSize().y;
-      var offset=Math.round(h*0.28);
-      navMap.setView(pos,18,{animate:true,duration:0.2});
-      setTimeout(()=>navMap.panBy([0,-offset],{animate:false}),50);
-
-      // Atualizar distância próxima curva (simplificado)
-      var pct=Math.round(navIdx/(rotaCoords.length-1)*100);
-      document.getElementById('nav-pb').style.width=pct+'%';
-      var kmRest=((1-pct/100)*(dadosRota?.distKm||0)).toFixed(1);
-      document.getElementById('nav-dist').textContent='Restam: '+kmRest+' km';
-      var minRest=Math.round((1-pct/100)*(dadosRota?.calcData?.duracao_total_min||0));
-      document.getElementById('nav-eta').textContent='Chegada em ~'+minRest+' min';
-      document.getElementById('nav-next-dist').textContent=kmRest+' km';
-    },80);
+    iniciarGPS();
   }
 }
 
 function resetNav(){
-  if(navTimer){clearInterval(navTimer);navTimer=null;}
-  navPlaying=false;navIdx=0;
-  if(nMarker)nMarker.setLatLng(rotaCoords[0]);
-  if(navMap)navMap.setView(rotaCoords[0],17);
-  document.getElementById('nav-play').textContent='▶ Iniciar';
+  pararGPS();
+  distTotalPercorrida=0;
+  ultimaPosGPS=null;
+  document.getElementById('nav-play').style.display='block';
+  document.getElementById('nav-play').textContent='▶ Iniciar GPS';
   document.getElementById('nav-pb').style.width='0%';
   document.getElementById('nav-dist').textContent='Rota: '+(dadosRota?.distKm||'?')+' km';
+  document.getElementById('nav-eta').textContent='Chegada: '+(dadosRota?.calcData?.duracao_total_min||'?')+' min';
+  if(nMarker&&rotaCoords.length)nMarker.setLatLng(rotaCoords[0]);
+  if(navMap&&rotaCoords.length)navMap.setView(rotaCoords[0],18);
 }
 
 function toggle3D(){
@@ -962,7 +1052,6 @@ function toggle3D(){
   if(modo3D){
     b.textContent='3D';b.style.color='#facc15';
     if(navMap)navMap.setZoom(19,{animate:true});
-    toast('🌐 Zoom aproximado');
   } else {
     b.textContent='2D';b.style.color='#48bfe3';
     if(navMap)navMap.setZoom(17,{animate:true});
