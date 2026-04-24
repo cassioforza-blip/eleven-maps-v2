@@ -718,6 +718,52 @@ function toast(msg){
   t.textContent=msg;document.body.appendChild(t);setTimeout(()=>t.remove(),3000);
 }
 
+// ── LOCALIZAÇÃO ──
+function usarLocalizacao(){
+  var btn=document.getElementById('btnloc');
+  btn.textContent='📡 Buscando...';
+  if(!navigator.geolocation){toast('GPS não disponível.');btn.textContent='📍 Minha localização';return;}
+  navigator.geolocation.getCurrentPosition(function(p){
+    var lat=p.coords.latitude, lng=p.coords.longitude;
+    fetch('https://nominatim.openstreetmap.org/reverse?lat='+lat+'&lon='+lng+'&format=jsonv2',{headers:{'User-Agent':'eleven-maps-v2/1.0'}})
+      .then(r=>r.json()).then(d=>{
+        var partes=(d.display_name||'').split(',');
+        document.getElementById('origem').value=partes.slice(0,3).join(',').trim();
+        btn.textContent='📍 Minha localização';
+        toast('📍 Localização obtida!');
+      }).catch(()=>{
+        document.getElementById('origem').value=lat.toFixed(6)+','+lng.toFixed(6);
+        btn.textContent='📍 Minha localização';
+      });
+  },function(e){btn.textContent='📍 Minha localização';toast('Erro GPS: '+e.message);},{enableHighAccuracy:true,timeout:15000});
+}
+
+// ── AUTOCOMPLETE ──
+var sugT={};
+function onInput(f){
+  var v=document.getElementById(f).value.trim();
+  clearTimeout(sugT[f]);
+  if(v.length<3){hideSug(f);return;}
+  sugT[f]=setTimeout(()=>fetchSug(f,v),350);
+}
+function fetchSug(f,q){
+  fetch('/sugestoes?q='+encodeURIComponent(q))
+    .then(r=>r.json())
+    .then(d=>showSug(f,d))
+    .catch(()=>{});
+}
+function showSug(f,items){
+  var b=document.getElementById('sug-'+f);
+  if(!items||!items.length){b.classList.remove('open');return;}
+  b.innerHTML=items.map(it=>`<div class="si" onmousedown="selSug('${f}','${it.nome.replace(/'/g,"\\'")}')"><span>${it.icone}</span>${it.nome}</div>`).join('');
+  b.classList.add('open');
+}
+function hideSug(f){setTimeout(()=>{var b=document.getElementById('sug-'+f);if(b)b.classList.remove('open');},200);}
+function selSug(f,nome){
+  document.getElementById(f).value=nome;
+  hideSug(f);
+}
+
 // ── PWA ──
 var dP=null;
 window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();dP=e;document.getElementById('ibanner').classList.add('show');document.getElementById('ihbtn').style.display='flex';});
