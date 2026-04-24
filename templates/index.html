@@ -572,538 +572,137 @@ function usarCasa(){
 // ── GPS ──
 function toggleGPS(){gpsAtivo?pararGPS():iniciarGPS();}
 function iniciarGPS(){
-  if(!navigator.geolocation){toast('GPS não disponível.');return;}
-  gpsAtivo=true;document.getElementById('gps-btn').classList.add('on');
-  document.getElementById('sbox').classList.add('show');
-  gpsWatch=navigator.geolocation.watchPosition(function(p){
-    var kmh=p.coords.speed!==null?Math.round(p.coords.speed*3.6):0;
-    document.getElementById('snum').textContent=kmh;
-    document.getElementById('sacc').textContent='±'+Math.round(p.coords.accuracy)+'m';
-    document.getElementById('scoords').textContent=p.coords.latitude.toFixed(5)+'\n'+p.coords.longitude.toFixed(5);
-    if(navPlaying)document.getElementById('nav-spd').textContent=kmh;
-  },function(e){document.getElementById('sacc').textContent='Erro: '+e.message;},{enableHighAccuracy:true,maximumAge:1000});
-}
-function pararGPS(){
-  if(gpsWatch!==null){navigator.geolocation.clearWatch(gpsWatch);gpsWatch=null;}
-  gpsAtivo=false;document.getElementById('gps-btn').classList.remove('on');
-  document.getElementById('sbox').classList.remove('show');
-}
-function usarLocalizacao(){
-  if(!navigator.geolocation){toast('GPS não disponível.');return;}
-  document.getElementById('btnloc').textContent='⏳';
-  navigator.geolocation.getCurrentPosition(function(p){
-    fetch('https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat='+p.coords.latitude+'&lon='+p.coords.longitude,{headers:{'User-Agent':'eleven-maps-v2/1.0'}})
-    .then(r=>r.json()).then(d=>{
-      var partes=(d.display_name||'').split(',');
-      document.getElementById('origem').value=partes.slice(0,3).join(',').trim();
-      document.getElementById('btnloc').textContent='📍 Minha localização';
-      toast('📍 Localização obtida!');
-    }).catch(()=>{
-      document.getElementById('origem').value=p.coords.latitude.toFixed(6)+','+p.coords.longitude.toFixed(6);
-      document.getElementById('btnloc').textContent='📍 Minha localização';
-    });
-  },function(e){document.getElementById('btnloc').textContent='📍 Minha localização';toast('Erro GPS: '+e.message);},{enableHighAccuracy:true,timeout:15000});
-}
-
-// ── AUTOCOMPLETE ──
-var sugT={};
-function onInput(f){var v=document.getElementById(f).value.trim();clearTimeout(sugT[f]);if(v.length<3){hideSug(f);return;}sugT[f]=setTimeout(()=>fetchSug(f,v),350);}
-function fetchSug(f,q){fetch('/sugestoes?q='+encodeURIComponent(q)).then(r=>r.json()).then(d=>showSug(f,d)).catch(()=>{});}
-function showSug(f,items){
-  var b=document.getElementById('sug-'+f);
-  if(!items.length){b.classList.remove('open');return;}
-  b.innerHTML=items.map(it=>`<div class="si" onmousedown="selSug('${f}','${it.nome.replace(/'/g,"\\'")}')"><span>${it.icone}</span>${it.nome}</div>`).join('');
-  b.classList.add('open');
-}
-function selSug(f,n){document.getElementById(f).value=n;document.getElementById('sug-'+f).classList.remove('open');}
-function hideSug(f){setTimeout(()=>{var b=document.getElementById('sug-'+f);if(b)b.classList.remove('open');},150);}
-
-// ── STEPS ──
-function setSteps(n){
-  var labels=['Geocodificando endereços...','Calculando rota HERE Maps...','Buscando trânsito...','Desenhando no mapa...'];
-  document.getElementById('lbox').innerHTML=labels.map((lb,i)=>{
-    var idx=i+1;
-    if(idx<n)return`<div class="ls done"><span style="color:var(--green)">✓</span> ${lb}</div>`;
-    if(idx===n)return`<div class="ls active"><div class="sp"></div> ${lb}</div>`;
-    return`<div class="ls">${lb}</div>`;
-  }).join('');
-}
-
-// ── CALCULAR ROTA ──
-async function calcularRota(){
-  var orig=document.getElementById('origem').value.trim();
-  var dest=document.getElementById('destino').value.trim();
-  var btn=document.getElementById('bcalc');
-  if(!orig||!dest){mostrarErro('Preencha os dois campos.');return;}
-
-  document.getElementById('err').className='err';
-  document.getElementById('stats').style.display='none';
-  document.getElementById('rnames').className='rnames';
-  document.getElementById('traf').className='traf';
-  document.getElementById('tbreak').className='tbreak';
-  document.getElementById('bnav').className='bnav';
-  btn.disabled=true;btn.querySelector('span').textContent='⏳ Calculando...';
-  document.getElementById('lbox').className='lbox show';
-  // Loading transporte público
-  if(modoTransporte==='publicTransport'){
-    document.getElementById('tp-loading').style.display='block';
-    document.getElementById('tp-resultado').style.display='none';
-    document.getElementById('tp-vazio').style.display='none';
-  }
-
-  var step=1;setSteps(step);
-  var timer=setInterval(()=>{step=Math.min(step+1,4);setSteps(step);},2000);
-
-  try{
-    // STEP 1: Geocode via backend
-    var geoResp=await fetch('/geocode',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({origem:orig,destino:dest})});
-    var geo=await geoResp.json();
-    if(!geoResp.ok){mostrarErro(geo.erro||'Erro ao localizar endereços.');clearInterval(timer);return;}
-
-    coordOrig=[geo.origem.lat,geo.origem.lon];
-    coordDest=[geo.destino.lat,geo.destino.lon];
-
-    // STEP 2: HERE Routing API (direto do browser)
-    setSteps(2);
-    var hereUrl='https://router.hereapi.com/v8/routes?'+new URLSearchParams({
-      apiKey:HERE_KEY,
-      transportMode:modoTransporte,
-      origin:`${geo.origem.lat},${geo.origem.lon}`,
-      destination:`${geo.destino.lat},${geo.destino.lon}`,
-      return:'polyline,summary',
-      routingMode:modoRota,
-    });
-
-    var hereResp=await fetch(hereUrl);
-    var hereData=await hereResp.json();
-
-    if(!hereResp.ok||!hereData.routes||!hereData.routes.length){
-      mostrarErro('HERE Maps: não foi possível calcular a rota.');clearInterval(timer);return;
-    }
-
-    // Decode polyline
-    var section=hereData.routes[0].sections[0];
-    var polylineStr=section.polyline;
-    var summary=section.summary;
-    var distKm=Math.round(summary.length/100)/10;
-    var durMin=Math.round(summary.duration/60);
-
-    // Decode HERE flexible polyline
-    rotaCoords=[];
-    if(typeof H!=='undefined'&&H.geo){
-      // HERE JS SDK
-    } else {
-      // Manual decode usando nossa implementação
-      rotaCoords=decodeFP(polylineStr);
-    }
-
-    if(!rotaCoords.length){mostrarErro('Erro ao decodificar a rota.');clearInterval(timer);return;}
-    console.log('Rota decodificada:', rotaCoords.length, 'pontos. Primeiro:', rotaCoords[0], 'Último:', rotaCoords[rotaCoords.length-1]);
-
-    // STEP 3: Traffic via HERE (browser)
-    setSteps(3);
-    var trafficStatus='indisponível';
-    var trafficCor='#6b7280';
-    var trafficVel=0;
-    try{
-      var bbox=[
-        Math.min(geo.origem.lon,geo.destino.lon)-0.03,
-        Math.min(geo.origem.lat,geo.destino.lat)-0.03,
-        Math.max(geo.origem.lon,geo.destino.lon)+0.03,
-        Math.max(geo.origem.lat,geo.destino.lat)+0.03,
-      ];
-      var tfResp=await fetch('https://data.traffic.hereapi.com/v7/flow?'+new URLSearchParams({
-        apiKey:HERE_KEY,locationReferencing:'shape',
-        in:`bbox:${bbox.join(',')}`
-      }));
-      if(tfResp.ok){
-        var tfData=await tfResp.json();
-        var speeds=(tfData.results||[]).slice(0,20).map(r=>r.currentFlow?.speed||0).filter(s=>s>0);
-        if(speeds.length){
-          var avg=speeds.reduce((a,b)=>a+b,0)/speeds.length;
-          trafficVel=Math.round(avg);
-          if(avg>60){trafficStatus='livre';trafficCor='#22c55e';}
-          else if(avg>30){trafficStatus='moderado';trafficCor='#f59e0b';}
-          else{trafficStatus='congestionado';trafficCor='#ef4444';}
-        }
-      }
-    }catch(e){}
-
-    // STEP 4: Backend calcula semáforos e tempo
-    setSteps(4);
-    // Para modos não-carro, trânsito não afeta e semáforos são reduzidos
-    var statusParaCalculo=trafficStatus;
-    if(modoTransporte==='pedestrian'||modoTransporte==='bicycle'||modoTransporte==='publicTransport'){
-      statusParaCalculo='livre'; // sem impacto de trânsito
-    }
-    var calcResp=await fetch('/calcular',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({distancia_km:distKm,duracao_min:durMin,transito_status:statusParaCalculo,modo_transporte:modoTransporte})});
-    var calcData=await calcResp.json();
-
-    clearInterval(timer);
-
-    // Desenha rota
-    desenharRota(geo,distKm);
-
-    // Stats
-    document.getElementById('s-dist').textContent=distKm;
-    document.getElementById('s-total').textContent=(calcData.duracao_total_min||durMin)+' min';
-    document.getElementById('s-trans').textContent=(calcData.duracao_transito_min||durMin)+' min';
-    document.getElementById('s-semaf').textContent=calcData.semaforos?.semaforos||'—';
-    document.getElementById('stats').style.display='grid';
-
-    // Breakdown
-    var atrasoT=(calcData.duracao_transito_min||durMin)-durMin;
-    document.getElementById('tb-base').textContent=durMin+' min';
-    document.getElementById('tb-trans').textContent='+'+(atrasoT>0?atrasoT:0)+' min';
-    document.getElementById('tb-sem').textContent='+'+( calcData.semaforos?.atraso_min||0)+' min';
-    document.getElementById('tb-tot').textContent=(calcData.duracao_total_min||durMin)+' min';
-    document.getElementById('tbreak').className='tbreak show';
-
-    // Nomes
-    document.getElementById('rn-o').textContent=geo.origem.nome;
-    document.getElementById('rn-d').textContent=geo.destino.nome;
-    document.getElementById('rnames').className='rnames show';
-
-    // Transporte público — renderizar etapas
-    if(modoTransporte==='publicTransport'){
-      document.getElementById('tp-loading').style.display='none';
-      renderizarTransportePublico(hereData, geo);
-    }
-
-    // Trânsito
-    document.getElementById('tdot').style.cssText=`background:${trafficCor};box-shadow:0 0 8px ${trafficCor}`;
-    document.getElementById('ttxt').innerHTML=`🚦 Trânsito <b>${trafficStatus}</b>`+(trafficVel>0?` · ${trafficVel} km/h`:'');
-    document.getElementById('traf').className='traf show';
-
-    // Nav button
-    document.getElementById('bnav').className='bnav show';
-    dadosRota={distKm,durMin,calcData,geo,trafficStatus,trafficVel};
-
-    document.getElementById('lbox').innerHTML=['Geocodificação','Rota calculada','Trânsito obtido','Mapa pronto']
-      .map(lb=>`<div class="ls done"><span style="color:var(--green)">✓</span> ${lb}</div>`).join('');
-
-    if(window.innerWidth<=768)document.getElementById('panel').classList.add('hidden');
-
-  }catch(e){
-    clearInterval(timer);
-    mostrarErro('Erro: '+e.message);
-  }finally{
-    btn.disabled=false;btn.querySelector('span').textContent='🗺️ Calcular Rota';
-  }
-}
-
-function desenharRota(geo,distKm){
-  if(mPolyline)leafMap.removeLayer(mPolyline);
-  if(mOrig)leafMap.removeLayer(mOrig);
-  if(mDest)leafMap.removeLayer(mDest);
-
-  mPolyline=L.polyline(rotaCoords,{color:'#6c63ff',weight:6,opacity:0.9}).addTo(leafMap);
-
-  var iO=L.divIcon({className:'',html:'<div style="width:16px;height:16px;background:#48bfe3;border-radius:50%;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.25);"></div>',iconSize:[16,16],iconAnchor:[8,8]});
-  var iD=L.divIcon({className:'',html:'<div style="width:16px;height:16px;background:#6c63ff;border-radius:50%;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.25);"></div>',iconSize:[16,16],iconAnchor:[8,8]});
-  mOrig=L.marker(coordOrig,{icon:iO}).bindPopup('<b>Origem</b><br>'+geo.origem.nome).addTo(leafMap);
-  mDest=L.marker(coordDest,{icon:iD}).bindPopup('<b>Destino</b><br>'+geo.destino.nome).addTo(leafMap);
-  var bounds = mPolyline.getBounds();
-  setTimeout(function(){
-    leafMap.invalidateSize(true);
-    leafMap.fitBounds(bounds, {padding:[50,50], maxZoom:15});
-    // Force tile reload
-    leafMap.eachLayer(function(layer){
-      if(layer.redraw) layer.redraw();
-    });
-  }, 300);
-}
-
-// ── FLEXIBLE POLYLINE DECODER ──
-function decodeFP(encoded) {
-  // HERE Flexible Polyline - official decoding table
-  var DT = [62,-1,-1,52,53,54,55,56,57,58,59,60,61,-1,-1,-1,-1,-1,-1,-1,
-    0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,
-    -1,-1,-1,-1,63,-1,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,
-    43,44,45,46,47,48,49,50,51];
-  function dc(c){return DT[c.charCodeAt(0)-45];}
-  function du(enc,i){
-    var r=0,s=0,v;
-    do{v=dc(enc[i++]);r|=(v&0x1f)<<s;s+=5;}while(v&0x20);
-    return[r,i];
-  }
-  function ts(v){return(v&1)?~(v>>1):(v>>1);}
-  var result=[];
-  try{
-    var r0=du(encoded,0); // version
-    var r1=du(encoded,r0[1]); // header
-    var hv=r1[0];
-    var precision=hv&15;
-    var has3d=((hv>>4)&7)>0;
-    var mult=Math.pow(10,precision);
-    var idx=r1[1],lat=0,lng=0;
-    while(idx<encoded.length){
-      var rl=du(encoded,idx);lat+=ts(rl[0]);idx=rl[1];
-      var rg=du(encoded,idx);lng+=ts(rg[0]);idx=rg[1];
-      if(has3d){var r3=du(encoded,idx);idx=r3[1];}
-      result.push([lat/mult,lng/mult]);
-    }
-    console.log('Decoded',result.length,'pts. First:',result[0]);
-  }catch(e){console.error('FP decode error:',e);}
-  return result;
-}
-
-function calcCamOffset(pos, idx){
-  var ahead=rotaCoords[Math.min(idx+20,rotaCoords.length-1)];
-  var dLat=ahead[0]-pos[0];
-  var dLng=ahead[1]-pos[1];
-  return[pos[0]+dLat*0.5, pos[1]+dLng*0.5];
-}
-
-function abrirNav(){
-  if(!rotaCoords.length){toast('Calcule uma rota primeiro!');return;}
-
-  // Mostrar overlay primeiro
-  document.getElementById('nav-overlay').classList.add('show');
-  navIdx=0;navPlaying=false;modo3D=false;
-  document.getElementById('nav-pb').style.width='0%';
-  document.getElementById('nav-next-dist').textContent='—';
-  document.getElementById('nav-next-street').textContent='Navegação iniciada';
-  document.getElementById('nav-dist').textContent='Rota: '+(dadosRota?.distKm||'?')+' km';
-  document.getElementById('nav-eta-time').textContent='—';
-  document.getElementById('nav-eta-min').textContent='—';
-
-  // Destruir mapa anterior se existir (evita bug de tamanho)
-  if(navMap){
-    navMap.remove();
-    navMap=null;
-    nPolyline=null;
-    nMarker=null;
-  }
-
-  // Aguardar overlay ficar visível antes de criar o mapa
-  setTimeout(function(){
-    var nm=document.getElementById('nav-map');
-    nm.style.cssText='position:absolute;inset:0;width:100%;height:100%;z-index:1;';
-
-    navMap=L.map('nav-map',{
-      zoomControl:false,
-      attributionControl:false,
-      dragging:false,
-      scrollWheelZoom:false,
-      tap:false
-    });
-
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{
-      maxZoom:19,
-      subdomains:'abcd'
-    }).addTo(navMap);
-
-    navMap.setView(rotaCoords[0],18);
-
-    // Rota
-    nPolyline=L.polyline(rotaCoords,{color:'#48bfe3',weight:8,opacity:0.95}).addTo(navMap);
-
-    // Bandeira no destino
-    var flagHtml='<div style="display:flex;flex-direction:column;align-items:center;transform:translate(-4px,-40px)">'+
-      '<div style="width:26px;height:4px;background:#facc15;border-radius:2px;position:relative;">'+
-      '<div style="position:absolute;left:0;top:-15px;width:0;height:0;border-left:18px solid #facc15;border-top:11px solid transparent;border-bottom:11px solid transparent;"></div>'+
-      '</div>'+
-      '<div style="width:4px;height:26px;background:#facc15;border-radius:2px;margin-top:-1px;"></div>'+
-      '</div>';
-    var iD=L.divIcon({className:'',html:flagHtml,iconSize:[36,44],iconAnchor:[4,40]});
-    L.marker(rotaCoords[rotaCoords.length-1],{icon:iD}).addTo(navMap);
-
-    // Seta inicial
-    var angle=calcAngle(rotaCoords,0);
-    var iC=L.divIcon({className:'',html:criarSetaHTML(angle),iconSize:[60,60],iconAnchor:[30,30]});
-    nMarker=L.marker(rotaCoords[0],{icon:iC}).addTo(navMap);
-
-    // Forçar redimensionamento e posicionar câmera
-    setTimeout(function(){
-      navMap.invalidateSize(true);
-      navMap.setView(rotaCoords[0],18);
-      // Offset: desloca câmera para norte para seta aparecer na parte inferior
-      var bounds=navMap.getBounds();
-      var latSpan=bounds.getNorth()-bounds.getSouth();
-      var camLat=rotaCoords[0][0]+latSpan*0.28;
-      navMap.setView([camLat,rotaCoords[0][1]],18,{animate:false});
-      iniciarGPS();
-    },300);
-
-  },200);
-}
-
-function fecharNav(){
-  document.getElementById('nav-overlay').classList.remove('show');
-  pararGPS();
-  navPlaying=false;
-  modo3D=false;
-  document.getElementById('btn3d').textContent='2D';
-  document.getElementById('btn3d').style.color='#48bfe3';
-}
-
-// ── GPS REAL ──
-var gpsWatchId=null;
-var gpsAtivo=false;
-var distTotalPercorrida=0;
-var ultimaPosGPS=null;
-
-function pararGPS(){
-  if(gpsWatchId!==null){
-    navigator.geolocation.clearWatch(gpsWatchId);
-    gpsWatchId=null;
-  }
-  gpsAtivo=false;
-}
-
-function iniciarGPS(){
-  if(!navigator.geolocation){
-    toast('❌ GPS não disponível neste dispositivo');
-    return;
-  }
+  if(!navigator.geolocation){toast('❌ GPS não disponível');return;}
   gpsAtivo=true;
   distTotalPercorrida=0;
   ultimaPosGPS=null;
   navPlaying=true;
-  document.getElementById('nav-play').style.display='none'; // esconde botão iniciar — GPS é automático
+  document.getElementById('nav-play').style.display='none';
+  toast('📡 Aguardando GPS...');
 
-  toast('📡 Aguardando sinal GPS...');
+  var ultimoAngle=0;
+  var ultimaRua='';
+  var ultimaBuscaRua=0;
+  var recalculando=false;
 
-  gpsWatchId=navigator.geolocation.watchPosition(
-    function(pos){
-      var lat=pos.coords.latitude;
-      var lng=pos.coords.longitude;
-      var speed=pos.coords.speed; // m/s
-      var heading=pos.coords.heading; // graus 0-360
+  gpsWatchId=navigator.geolocation.watchPosition(function(pos){
+    var lat=pos.coords.latitude;
+    var lng=pos.coords.longitude;
+    var acc=pos.coords.accuracy||99;
+    var speed=pos.coords.speed;
+    var heading=pos.coords.heading;
 
-      // Velocidade
-      var kmh=speed!=null&&speed>=0?Math.round(speed*3.6):0;
-      document.getElementById('nav-spd').textContent=kmh;
+    // Ignorar posições muito imprecisas
+    if(acc>30&&ultimaPosGPS){return;}
 
-      // Seta
-      var angle=0;
-      if(heading!=null&&!isNaN(heading)){
+    // Velocidade
+    var kmh=speed!=null&&speed>=0?Math.round(speed*3.6):0;
+    document.getElementById('nav-spd').textContent=kmh;
+
+    // Seta — só atualiza direção se em movimento (>2 km/h)
+    var angle=ultimoAngle;
+    if(kmh>2){
+      if(heading!=null&&!isNaN(heading)&&heading>=0){
         angle=heading;
       } else if(ultimaPosGPS){
         var dy=lat-ultimaPosGPS[0];
         var dx=lng-ultimaPosGPS[1];
-        angle=Math.atan2(dx,dy)*(180/Math.PI);
+        var a=Math.atan2(dx,dy)*(180/Math.PI);
+        if(Math.abs(a-ultimoAngle)>5) angle=a;
       }
-      var arrowHtml=criarSetaHTML(angle);
-      var iC=L.divIcon({className:'',html:arrowHtml,iconSize:[60,60],iconAnchor:[30,30]});
-      if(nMarker){nMarker.setIcon(iC);nMarker.setLatLng([lat,lng]);}
+    }
+    ultimoAngle=angle;
 
-      // Câmera: offset em graus para seta ficar na parte inferior
-      // Calcula quantos graus de latitude correspondem a 30% da tela
-      var bounds=navMap.getBounds();
-      var latSpan=bounds.getNorth()-bounds.getSouth();
-      var camLat=lat + latSpan*0.28; // desloca câmera para norte → seta vai para baixo
-      navMap.setView([camLat,lng],18,{animate:true,duration:0.4,noMoveStart:true});
+    // Atualizar marcador
+    var iC=L.divIcon({className:'',html:criarSetaHTML(angle),iconSize:[60,60],iconAnchor:[30,30]});
+    if(nMarker){nMarker.setIcon(iC);nMarker.setLatLng([lat,lng]);}
 
-      // Distância percorrida
-      if(ultimaPosGPS){
-        var d=calcDistancia(ultimaPosGPS[0],ultimaPosGPS[1],lat,lng);
-        distTotalPercorrida+=d;
+    // Câmera sem panBy — offset calculado em graus
+    var latRad=lat*Math.PI/180;
+    var zoomAtual=navMap.getZoom();
+    var mpp=156543.03392*Math.cos(latRad)/Math.pow(2,zoomAtual);
+    var mapH=navMap.getSize().y;
+    var offsetGraus=(mpp*mapH*0.3)/111320;
+    navMap.setView([lat+offsetGraus,lng],zoomAtual,{animate:false});
+
+    // Distância para o destino (mais preciso que acumular)
+    if(ultimaPosGPS){
+      var d=calcDistancia(ultimaPosGPS[0],ultimaPosGPS[1],lat,lng);
+      if(d>0.003) distTotalPercorrida+=d;
+    }
+    ultimaPosGPS=[lat,lng];
+
+    var distTotal=dadosRota?.distKm||1;
+    var distDest=rotaCoords.length?calcDistancia(lat,lng,rotaCoords[rotaCoords.length-1][0],rotaCoords[rotaCoords.length-1][1]):distTotal;
+    var kmRest=Math.max(0,distDest).toFixed(1);
+    var pct=Math.min(100,Math.max(0,Math.round((1-distDest/distTotal)*100)));
+    document.getElementById('nav-pb').style.width=pct+'%';
+
+    var minTot=dadosRota?.calcData?.duracao_total_min||0;
+    var minRest=Math.max(0,kmh>5?Math.round(distDest/(kmh/60)):Math.round(minTot*(1-pct/100)));
+    var chegada=new Date();
+    chegada.setMinutes(chegada.getMinutes()+minRest);
+    document.getElementById('nav-dist').textContent=kmRest+' km';
+    document.getElementById('nav-eta-time').textContent=String(chegada.getHours()).padStart(2,'0')+':'+String(chegada.getMinutes()).padStart(2,'0');
+    document.getElementById('nav-eta-min').textContent=minRest+' min';
+    document.getElementById('nav-next-dist').textContent=kmRest+' km';
+
+    // Recálculo automático se saiu da rota (>80m)
+    if(!recalculando&&rotaCoords.length>0){
+      var distMinRota=rotaCoords.reduce(function(mn,c){return Math.min(mn,calcDistancia(lat,lng,c[0],c[1]));},999);
+      if(distMinRota>0.08){
+        recalculando=true;
+        toast('🔄 Fora da rota! Recalculando...');
+        document.getElementById('origem').value=lat.toFixed(6)+','+lng.toFixed(6);
+        setTimeout(function(){calcularRota().then(function(){recalculando=false;}).catch(function(){recalculando=false;});},1500);
       }
-      ultimaPosGPS=[lat,lng];
+    }
 
-      // Progresso
-      var distTotal=dadosRota?.distKm||1;
-      var pct=Math.min(100,Math.round((distTotalPercorrida/distTotal)*100));
-      document.getElementById('nav-pb').style.width=pct+'%';
+    // Nome da rua (a cada 6s)
+    var agora=Date.now();
+    if(agora-ultimaBuscaRua>6000){
+      ultimaBuscaRua=agora;
+      fetch('https://nominatim.openstreetmap.org/reverse?lat='+lat+'&lon='+lng+'&format=json',{headers:{'User-Agent':'eleven-maps-v2/1.0'}})
+        .then(function(r){return r.json();})
+        .then(function(data){
+          var road=data.address&&(data.address.road||data.address.pedestrian||data.address.neighbourhood)||'';
+          if(road&&road!==ultimaRua){
+            ultimaRua=road;
+            document.getElementById('nav-current-street').textContent=road;
+            document.getElementById('nav-next-street').textContent=road;
+          }
+        }).catch(function(){});
+    }
 
-      var kmRest=Math.max(0,distTotal-distTotalPercorrida).toFixed(1);
-      var minTot=dadosRota?.calcData?.duracao_total_min||0;
-      var minRest=Math.max(0,Math.round(minTot*(1-pct/100)));
-
-      // Horário de chegada estimado
-      var now=new Date();
-      now.setMinutes(now.getMinutes()+minRest);
-      var hh=String(now.getHours()).padStart(2,'0');
-      var mm=String(now.getMinutes()).padStart(2,'0');
-
-      document.getElementById('nav-dist').textContent=kmRest+' km';
-      document.getElementById('nav-eta-time').textContent=hh+':'+mm;
-      document.getElementById('nav-eta-min').textContent=minRest+' min';
-      document.getElementById('nav-next-dist').textContent=kmRest+' km';
-
-      // Buscar nome da rua atual via Nominatim (a cada 5 segundos)
-      if(!ultimaPosGPS._lastStreet||Date.now()-ultimaPosGPS._lastStreet>5000){
-        if(ultimaPosGPS) ultimaPosGPS._lastStreet=Date.now();
-        fetch('https://nominatim.openstreetmap.org/reverse?lat='+lat+'&lon='+lng+'&format=json',{headers:{'User-Agent':'eleven-maps-v2/1.0'}})
-          .then(r=>r.json())
-          .then(data=>{
-            var road=data.address?.road||data.address?.pedestrian||data.address?.neighbourhood||'';
-            if(road){
-              document.getElementById('nav-current-street').textContent=road;
-              document.getElementById('nav-next-street').textContent=road;
-            }
-          }).catch(()=>{});
-      }
-
-      // Chegada
-      if(rotaCoords.length){
-        var dest=rotaCoords[rotaCoords.length-1];
-        var distDest=calcDistancia(lat,lng,dest[0],dest[1]);
-        if(distDest<0.05){
-          toast('🎉 Você chegou ao destino!');
-          pararGPS();
-          document.getElementById('nav-pb').style.width='100%';
-          document.getElementById('nav-play').style.display='block';
-          document.getElementById('nav-play').textContent='✓ Chegou!';
-        }
-      }
-    },
-    function(err){
-      var msgs={1:'GPS bloqueado. Permita o acesso à localização.',2:'Sinal GPS fraco. Tente ao ar livre.',3:'GPS demorou muito. Tente novamente.'};
-      toast('⚠️ '+( msgs[err.code]||'Erro de GPS'));
+    // Chegada (30m do destino)
+    if(distDest<0.03){
+      toast('🎉 Chegou ao destino!');
+      pararGPS();
+      document.getElementById('nav-pb').style.width='100%';
       document.getElementById('nav-play').style.display='block';
-    },
-    {enableHighAccuracy:true, maximumAge:1000, timeout:10000}
-  );
-}
+      document.getElementById('nav-play').textContent='✓ Chegou!';
+    }
 
-function calcDistancia(lat1,lng1,lat2,lng2){
-  // Haversine — retorna km
-  var R=6371;
-  var dLat=(lat2-lat1)*Math.PI/180;
-  var dLng=(lng2-lng1)*Math.PI/180;
-  var a=Math.sin(dLat/2)*Math.sin(dLat/2)+
-    Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*
-    Math.sin(dLng/2)*Math.sin(dLng/2);
-  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
-}
-
-function togglePlay(){
-  // Mantido apenas para o botão de reset/retomar se GPS parar
-  if(gpsAtivo){
-    pararGPS();
-    document.getElementById('nav-play').textContent='▶ Retomar GPS';
+  },function(err){
+    var msgs={1:'GPS bloqueado. Permita localização.',2:'Sinal fraco.',3:'GPS timeout.'};
+    toast('⚠️ '+(msgs[err.code]||'Erro GPS'));
     document.getElementById('nav-play').style.display='block';
-  } else {
-    iniciarGPS();
-  }
-}
-
-function resetNav(){
-  pararGPS();
-  distTotalPercorrida=0;
-  ultimaPosGPS=null;
-  document.getElementById('nav-play').style.display='block';
-  document.getElementById('nav-play').textContent='▶ Iniciar GPS';
-  document.getElementById('nav-pb').style.width='0%';
-  document.getElementById('nav-dist').textContent='Rota: '+(dadosRota?.distKm||'?')+' km';
-  document.getElementById('nav-eta-time').textContent='—';
-  document.getElementById('nav-eta-min').textContent='—';
-  if(nMarker&&rotaCoords.length)nMarker.setLatLng(rotaCoords[0]);
-  if(navMap&&rotaCoords.length)navMap.setView(rotaCoords[0],18);
+  },{enableHighAccuracy:true,maximumAge:2000,timeout:15000});
 }
 
 function toggle3D(){
   modo3D=!modo3D;
   var b=document.getElementById('btn3d');
+  var nm=document.getElementById('nav-map');
   if(modo3D){
     b.textContent='3D';b.style.color='#facc15';
-    if(navMap)navMap.setZoom(19,{animate:true});
+    nm.style.cssText='position:absolute;inset:0;width:100%;height:100%;z-index:1;transform:perspective(800px) rotateX(35deg) scale(1.5);transform-origin:50% 100%;';
+    setTimeout(function(){if(navMap)navMap.invalidateSize(true);},150);
+    toast('🌐 3D ativado');
   } else {
     b.textContent='2D';b.style.color='#48bfe3';
-    if(navMap)navMap.setZoom(17,{animate:true});
+    nm.style.cssText='position:absolute;inset:0;width:100%;height:100%;z-index:1;';
+    setTimeout(function(){if(navMap)navMap.invalidateSize(true);},150);
   }
 }
 
