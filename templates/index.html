@@ -569,6 +569,250 @@ function usarCasa(){
   document.getElementById('origem').value=endCasa;
 }
 
+// ── STEPS ──
+var stepTimer=null;
+function setSteps(n){
+  var msgs=['Geocodificando endereços...','Calculando rota HERE Maps...','Obtendo dados de trânsito...','Processando dados...'];
+  document.getElementById('lbox').className='lbox show';
+  document.getElementById('lbox').innerHTML=msgs.slice(0,n).map((m,i)=>
+    `<div class="ls ${i<n-1?'done':''}"><span style="color:${i<n-1?'var(--green)':'var(--accent)'};">${i<n-1?'✓':'⟳'}</span> ${m}</div>`
+  ).join('');
+}
+
+// ── CALCULAR ROTA ──
+async function calcularRota(){
+  var endO=document.getElementById('origem').value.trim();
+  var endD=document.getElementById('destino').value.trim();
+  if(!endO||!endD){toast('Preencha origem e destino!');return;}
+
+  var btn=document.querySelector('.cbtn');
+  if(btn){btn.disabled=true;btn.querySelector('span').textContent='⏳ Calculando...';}
+  document.getElementById('err').className='err';
+
+  var timer=setInterval(()=>{},1000);
+
+  try{
+    // STEP 1: Geocode
+    setSteps(1);
+    var geoResp=await fetch('/geocode',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({origem:endO,destino:endD})});
+    var geo=await geoResp.json();
+    if(!geoResp.ok){mostrarErro(geo.erro||'Erro ao localizar endereços.');clearInterval(timer);return;}
+
+    coordOrig=[geo.origem.lat,geo.origem.lon];
+    coordDest=[geo.destino.lat,geo.destino.lon];
+
+    // STEP 2: HERE Routing
+    setSteps(2);
+    var hereUrl='https://router.hereapi.com/v8/routes?'+new URLSearchParams({
+      apiKey:HERE_KEY,
+      transportMode:modoTransporte,
+      origin:`${geo.origem.lat},${geo.origem.lon}`,
+      destination:`${geo.destino.lat},${geo.destino.lon}`,
+      return:'polyline,summary',
+      routingMode:modoRota,
+    });
+    var hereResp=await fetch(hereUrl);
+    var hereData=await hereResp.json();
+    if(!hereResp.ok||!hereData.routes||!hereData.routes.length){
+      mostrarErro('Não foi possível calcular a rota.');clearInterval(timer);return;
+    }
+
+    // Decode polyline
+    var section=hereData.routes[0].sections[0];
+    var summary=section.summary;
+    var distKm=Math.round(summary.length/100)/10;
+    var durMin=Math.round(summary.duration/60);
+    rotaCoords=decodeFP(section.polyline);
+    if(!rotaCoords.length){mostrarErro('Erro ao decodificar rota.');clearInterval(timer);return;}
+
+    // STEP 3: Trânsito
+    setSteps(3);
+    var trafficStatus='livre';var trafficCor='#22c55e';var trafficVel=0;
+    try{
+      var tResp=await fetch('https://data.traffic.hereapi.com/v7/flow?locationReferencing=shape&in=corridor:'+
+        rotaCoords.slice(0,5).map(c=>c[0]+','+c[1]).join(';')+';r=50&apiKey='+HERE_KEY);
+      if(tResp.ok){
+        var tData=await tResp.json();
+        var speeds=tData.results?.map(r=>r.currentFlow?.speed).filter(Boolean)||[];
+        if(speeds.length){
+          trafficVel=Math.round(speeds.reduce((a,b)=>a+b)/speeds.length);
+          if(trafficVel<20){trafficStatus='congestionado';trafficCor='#ef4444';}
+          else if(trafficVel<50){trafficStatus='moderado';trafficCor='#f59e0b';}
+        }
+      }
+    }catch(e){}
+
+    // STEP 4: Backend
+    setSteps(4);
+    var calcResp=await fetch('/calcular',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({distancia_km:distKm,duracao_min:durMin,transito_status:trafficStatus,modo_transporte:modoTransporte})});
+    var calcData=await calcResp.json();
+
+    // Desenhar rota
+    desenharRota(geo,distKm);
+
+    // Stats
+    document.getElementById('sv-dist').textContent=distKm+' km';
+    document.getElementById('sv-time').textContent=calcData.duracao_total_min+' min';
+    document.getElementById('sv-traf').textContent=trafficStatus;
+    document.getElementById('sv-sem').textContent=calcData.semaforos?.semaforos||0;
+    document.getElementById('stats').style.display='grid';
+
+    // Time breakdown
+    document.getElementById('tb-base').textContent=calcData.duracao_base_min+' min';
+    document.getElementById('tb-traf').textContent=(calcData.duracao_transito_min-calcData.duracao_base_min)+' min';
+    document.getElementById('tb-sem').textContent=(calcData.semaforos?.atraso_min||0)+' min';
+    document.getElementById('tb-total').textContent=calcData.duracao_total_min+' min';
+    document.getElementById('tbreak').className='tbreak show';
+
+    document.getElementById('rn-o').textContent=geo.origem.nome;
+    document.getElementById('rn-d').textContent=geo.destino.nome;
+    document.getElementById('rnames').className='rnames show';
+
+    if(modoTransporte==='publicTransport'){
+      document.getElementById('tp-loading').style.display='none';
+      renderizarTransportePublico(hereData,geo);
+    }
+
+    document.getElementById('tdot').style.cssText=`background:${trafficCor};box-shadow:0 0 8px ${trafficCor}`;
+    document.getElementById('ttxt').innerHTML=`🚦 Trânsito <b>${trafficStatus}</b>`+(trafficVel>0?` · ${trafficVel} km/h`:'');
+    document.getElementById('traf').className='traf show';
+    document.getElementById('bnav').className='bnav show';
+    dadosRota={distKm,durMin,calcData,geo,trafficStatus,trafficVel};
+
+    document.getElementById('lbox').innerHTML=['Geocodificação','Rota calculada','Trânsito obtido','Mapa pronto']
+      .map(lb=>`<div class="ls done"><span style="color:var(--green)">✓</span> ${lb}</div>`).join('');
+
+    if(window.innerWidth<=768)document.getElementById('panel').classList.add('hidden');
+
+  }catch(e){
+    clearInterval(timer);
+    mostrarErro('Erro: '+e.message);
+  }finally{
+    clearInterval(timer);
+    if(btn){btn.disabled=false;btn.querySelector('span').textContent='🗺️ Calcular Rota';}
+  }
+}
+
+// ── DESENHAR ROTA ──
+function desenharRota(geo,distKm){
+  if(mPolyline)leafMap.removeLayer(mPolyline);
+  if(mOrig)leafMap.removeLayer(mOrig);
+  if(mDest)leafMap.removeLayer(mDest);
+  mPolyline=L.polyline(rotaCoords,{color:'#6c63ff',weight:6,opacity:0.9}).addTo(leafMap);
+  var iO=L.divIcon({className:'',html:'<div style="width:16px;height:16px;background:#48bfe3;border-radius:50%;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.25);"></div>',iconSize:[16,16],iconAnchor:[8,8]});
+  var iD=L.divIcon({className:'',html:'<div style="width:16px;height:16px;background:#6c63ff;border-radius:50%;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.25);"></div>',iconSize:[16,16],iconAnchor:[8,8]});
+  mOrig=L.marker(coordOrig,{icon:iO}).bindPopup('<b>Origem</b><br>'+geo.origem.nome).addTo(leafMap);
+  mDest=L.marker(coordDest,{icon:iD}).bindPopup('<b>Destino</b><br>'+geo.destino.nome).addTo(leafMap);
+  setTimeout(function(){
+    leafMap.invalidateSize(true);
+    leafMap.fitBounds(mPolyline.getBounds(),{padding:[50,50],maxZoom:15});
+  },100);
+}
+
+// ── FLEXIBLE POLYLINE DECODER ──
+function decodeFP(encoded){
+  var result=[];
+  try{
+    if(typeof flexi!=='undefined'){return flexi.decode(encoded).polyline||[];}
+    // Manual decode
+    var i=0,lat=0,lng=0;
+    function decodeVal(){
+      var r=0,s=0,b;
+      do{b=encoded.charCodeAt(i++)-63;r|=(b&0x1f)<<s;s+=5;}while(b>=0x20);
+      return(r&1)?~(r>>1):(r>>1);
+    }
+    while(i<encoded.length){
+      lat+=decodeVal();lng+=decodeVal();
+      result.push([lat/1e5,lng/1e5]);
+    }
+  }catch(e){
+    // Tentar com flexpolyline global
+    try{
+      var dec=Object.keys(window).find(k=>window[k]&&window[k].decode);
+      if(dec)result=window[dec].decode(encoded).polyline||[];
+    }catch(e2){}
+  }
+  return result;
+}
+
+// ── NAVEGAÇÃO ──
+function calcCamOffset(pos,idx){
+  var ahead=rotaCoords[Math.min(idx+20,rotaCoords.length-1)];
+  var dLat=ahead[0]-pos[0];var dLng=ahead[1]-pos[1];
+  return[pos[0]+dLat*0.5,pos[1]+dLng*0.5];
+}
+
+function abrirNav(){
+  if(!rotaCoords.length){toast('Calcule uma rota primeiro!');return;}
+  document.getElementById('nav-overlay').classList.add('show');
+  navIdx=0;navPlaying=false;modo3D=false;
+  document.getElementById('nav-pb').style.width='0%';
+  document.getElementById('nav-next-dist').textContent='—';
+  document.getElementById('nav-next-street').textContent='Navegação iniciada';
+  document.getElementById('nav-dist').textContent='Rota: '+(dadosRota?.distKm||'?')+' km';
+  document.getElementById('nav-eta-time').textContent='—';
+  document.getElementById('nav-eta-min').textContent='—';
+
+  if(navMap){navMap.remove();navMap=null;nPolyline=null;nMarker=null;}
+
+  setTimeout(function(){
+    var nm=document.getElementById('nav-map');
+    nm.style.cssText='position:absolute;inset:0;width:100%;height:100%;z-index:1;';
+    navMap=L.map('nav-map',{zoomControl:false,attributionControl:false,dragging:false,scrollWheelZoom:false,tap:false});
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{maxZoom:19,subdomains:'abcd'}).addTo(navMap);
+    navMap.setView(rotaCoords[0],18);
+    nPolyline=L.polyline(rotaCoords,{color:'#48bfe3',weight:8,opacity:0.95}).addTo(navMap);
+    var flagHtml='<div style="display:flex;flex-direction:column;align-items:center;transform:translate(-4px,-40px)"><div style="width:26px;height:4px;background:#facc15;border-radius:2px;position:relative;"><div style="position:absolute;left:0;top:-15px;width:0;height:0;border-left:18px solid #facc15;border-top:11px solid transparent;border-bottom:11px solid transparent;"></div></div><div style="width:4px;height:26px;background:#facc15;border-radius:2px;margin-top:-1px;"></div></div>';
+    L.marker(rotaCoords[rotaCoords.length-1],{icon:L.divIcon({className:'',html:flagHtml,iconSize:[36,44],iconAnchor:[4,40]})}).addTo(navMap);
+    var iC=L.divIcon({className:'',html:criarSetaHTML(calcAngle(rotaCoords,0)),iconSize:[60,60],iconAnchor:[30,30]});
+    nMarker=L.marker(rotaCoords[0],{icon:iC}).addTo(navMap);
+    setTimeout(function(){
+      navMap.invalidateSize(true);
+      navMap.setView(rotaCoords[0],18);
+      iniciarGPS();
+    },300);
+  },200);
+}
+
+function fecharNav(){
+  document.getElementById('nav-overlay').classList.remove('show');
+  pararGPS();navPlaying=false;modo3D=false;
+  var nm=document.getElementById('nav-map');
+  if(nm){nm.style.transform='none';}
+  var b=document.getElementById('btn3d');
+  if(b){b.textContent='2D';b.style.color='#48bfe3';}
+}
+
+function pararGPS(){
+  if(gpsWatchId!=null){navigator.geolocation.clearWatch(gpsWatchId);gpsWatchId=null;}
+  gpsAtivo=false;
+}
+
+function togglePlay(){
+  if(gpsAtivo){pararGPS();document.getElementById('nav-play').style.display='block';document.getElementById('nav-play').textContent='▶ Retomar GPS';}
+  else{iniciarGPS();}
+}
+
+function resetNav(){
+  pararGPS();distTotalPercorrida=0;ultimaPosGPS=null;
+  document.getElementById('nav-play').style.display='block';
+  document.getElementById('nav-play').textContent='▶ Iniciar GPS';
+  document.getElementById('nav-pb').style.width='0%';
+  document.getElementById('nav-dist').textContent='Rota: '+(dadosRota?.distKm||'?')+' km';
+  document.getElementById('nav-eta-time').textContent='—';
+  document.getElementById('nav-eta-min').textContent='—';
+  if(nMarker&&rotaCoords.length)nMarker.setLatLng(rotaCoords[0]);
+  if(navMap&&rotaCoords.length)navMap.setView(rotaCoords[0],18);
+}
+
+function calcDistancia(lat1,lng1,lat2,lng2){
+  var R=6371,dLat=(lat2-lat1)*Math.PI/180,dLng=(lng2-lng1)*Math.PI/180;
+  var a=Math.sin(dLat/2)*Math.sin(dLat/2)+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)*Math.sin(dLng/2);
+  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+}
+
 // ── GPS ──
 function toggleGPS(){gpsAtivo?pararGPS():iniciarGPS();}
 function iniciarGPS(){
