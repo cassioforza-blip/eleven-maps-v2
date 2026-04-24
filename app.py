@@ -42,33 +42,85 @@ def geocodificar_endereco(texto):
 def sugerir_locais(texto):
     try:
         headers = {"User-Agent": USER_AGENT}
-        r = requests.get(NOMINATIM_URL, params={
-            "q": f"{texto.strip()}, São Paulo",
-            "format": "jsonv2", "limit": 7, "addressdetails": 1, "countrycodes": "br",
-            "viewbox": f"{SP_BOUNDS['lon_min']},{SP_BOUNDS['lat_max']},{SP_BOUNDS['lon_max']},{SP_BOUNDS['lat_min']}",
-            "bounded": 1,
-        }, headers=headers, timeout=8)
+        texto = texto.strip()
+
+        # Detectar se tem número no endereço (ex: "Rua X, 123")
+        # Tentar busca estruturada primeiro se tiver vírgula + número
+        import re
+        tem_numero = bool(re.search(r',\s*\d+', texto))
+
+        tentativas_query = []
+
+        if tem_numero:
+            # Separar rua do número para busca estruturada
+            partes_end = re.split(r',\s*', texto, maxsplit=1)
+            rua = partes_end[0].strip()
+            numero = partes_end[1].strip() if len(partes_end) > 1 else ''
+            tentativas_query = [
+                f"{rua}, {numero}, São Paulo, SP, Brasil",
+                f"{rua} {numero}, São Paulo, SP",
+                f"{texto}, São Paulo, SP, Brasil",
+                f"{texto}, São Paulo",
+            ]
+        else:
+            tentativas_query = [
+                f"{texto}, São Paulo",
+                f"{texto}, SP, Brasil",
+                texto,
+            ]
+
         resultado = []
-        for local in r.json():
-            lat, lon = float(local["lat"]), float(local["lon"])
-            if not dentro_de_sp(lat, lon):
+        vistos = set()
+
+        for query in tentativas_query:
+            try:
+                r = requests.get(NOMINATIM_URL, params={
+                    "q": query,
+                    "format": "jsonv2",
+                    "limit": 7,
+                    "addressdetails": 1,
+                    "countrycodes": "br",
+                    "viewbox": f"{SP_BOUNDS['lon_min']},{SP_BOUNDS['lat_max']},{SP_BOUNDS['lon_max']},{SP_BOUNDS['lat_min']}",
+                    "bounded": 0,  # não limitar — filtramos manualmente
+                }, headers=headers, timeout=8)
+
+                for local in r.json():
+                    lat, lon = float(local["lat"]), float(local["lon"])
+                    if not dentro_de_sp(lat, lon):
+                        continue
+                    nome = local.get("display_name", "")
+                    partes = nome.split(",")
+                    nome_curto = ", ".join(p.strip() for p in partes[:4])
+
+                    # Evitar duplicatas
+                    chave = f"{lat:.4f},{lon:.4f}"
+                    if chave in vistos:
+                        continue
+                    vistos.add(chave)
+
+                    cat = local.get("category", "")
+                    tipo = local.get("type", "")
+                    icone = "📍"
+                    if cat == "amenity":
+                        if tipo in ("restaurant", "cafe", "bar", "fast_food"): icone = "🍽️"
+                        elif tipo in ("hospital", "pharmacy"): icone = "🏥"
+                        elif tipo in ("school", "university"): icone = "🎓"
+                        elif tipo == "bank": icone = "🏦"
+                    elif cat == "shop": icone = "🛍️"
+                    elif cat == "leisure": icone = "🌳"
+                    elif cat == "highway": icone = "🛣️"
+                    elif cat == "place": icone = "🏙️"
+                    elif tipo in ("mall", "supermarket"): icone = "🏬"
+
+                    resultado.append({"nome": nome_curto, "lat": lat, "lon": lon, "icone": icone})
+
+                if resultado:
+                    break  # achou resultados, não precisa tentar mais
+
+            except Exception:
                 continue
-            nome = local.get("display_name", "")
-            partes = nome.split(",")
-            nome_curto = ", ".join(p.strip() for p in partes[:4])
-            cat = local.get("category", "")
-            tipo = local.get("type", "")
-            icone = "📍"
-            if cat == "amenity":
-                if tipo in ("restaurant","cafe","bar","fast_food"): icone = "🍽️"
-                elif tipo in ("hospital","pharmacy"): icone = "🏥"
-                elif tipo in ("school","university"): icone = "🎓"
-                elif tipo == "bank": icone = "🏦"
-            elif cat == "shop": icone = "🛍️"
-            elif cat == "leisure": icone = "🌳"
-            elif tipo in ("mall","supermarket"): icone = "🏬"
-            resultado.append({"nome": nome_curto, "lat": lat, "lon": lon, "icone": icone})
-        return resultado
+
+        return resultado[:7]
     except Exception:
         return []
 

@@ -743,8 +743,12 @@ var sugT={};
 function onInput(f){
   var v=document.getElementById(f).value.trim();
   clearTimeout(sugT[f]);
-  if(v.length<3){hideSug(f);return;}
-  sugT[f]=setTimeout(()=>fetchSug(f,v),350);
+  // Com vírgula (endereço com número) ativa com 1+ char após a vírgula
+  var temVirgula=v.includes(',');
+  var minLen=temVirgula?1:2;
+  if(v.length<minLen){hideSug(f);return;}
+  var delay=temVirgula?150:400;
+  sugT[f]=setTimeout(()=>fetchSug(f,v),delay);
 }
 function fetchSug(f,q){
   fetch('/sugestoes?q='+encodeURIComponent(q))
