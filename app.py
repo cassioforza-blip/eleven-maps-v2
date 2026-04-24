@@ -226,5 +226,18 @@ def calcular():
     })
 
 
-if __name__ == "__main__":
+@app.route("/decodificar", methods=["POST"])
+def decodificar():
+    """Decodifica polyline HERE flexible polyline no backend."""
+    try:
+        import flexpolyline as fp
+        dados = request.get_json()
+        encoded = dados.get("polyline", "")
+        coords = fp.decode(encoded)
+        # Retorna como lista de [lat, lng]
+        return jsonify({"coords": [[c[0], c[1]] for c in coords]})
+    except Exception as e:
+        return jsonify({"erro": str(e)}), 400
+
+if __name__ == '__main__':
     app.run(debug=True)

@@ -618,13 +618,18 @@ async function calcularRota(){
       mostrarErro('Não foi possível calcular a rota.');clearInterval(timer);return;
     }
 
-    // Decode polyline
+    // Decode polyline via backend (mais confiável)
     var section=hereData.routes[0].sections[0];
     var summary=section.summary;
     var distKm=Math.round(summary.length/100)/10;
     var durMin=Math.round(summary.duration/60);
-    rotaCoords=decodeFP(section.polyline);
-    if(!rotaCoords.length){mostrarErro('Erro ao decodificar rota.');clearInterval(timer);return;}
+    var decResp=await fetch('/decodificar',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({polyline:section.polyline})});
+    var decData=await decResp.json();
+    if(!decResp.ok||!decData.coords||!decData.coords.length){
+      mostrarErro('Erro ao decodificar rota.');clearInterval(timer);return;
+    }
+    rotaCoords=decData.coords;
 
     // STEP 3: Trânsito
     setSteps(3);
