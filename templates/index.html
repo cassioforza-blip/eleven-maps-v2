@@ -624,29 +624,43 @@ function getTileUrl(){
 }
 
 window.addEventListener('load',function(){
-  function initMap(){
-    var el=document.getElementById('map');
-    if(!el||el.clientHeight<50){setTimeout(initMap,150);return;}
-    leafMap=L.map('map',{zoomControl:true,attributionControl:false});
+  // Inicializar mapa usando ResizeObserver para garantir tamanho correto
+  var el=document.getElementById('map');
+  var mapIniciado=false;
+  function criarLeaflet(){
+    if(mapIniciado)return;
+    mapIniciado=true;
+    leafMap=L.map('map',{
+      zoomControl:true,
+      attributionControl:false,
+      preferCanvas:true
+    });
     L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',{
       maxZoom:19,subdomains:'abcd'
     }).addTo(leafMap);
     L.control.attribution({prefix:'© OpenStreetMap'}).addTo(leafMap);
-    // Forçar tamanho correto antes de setar view
-    leafMap.invalidateSize(true);
     leafMap.setView([-23.55,-46.63],12);
-    // Segunda chamada para garantir após repaint
-    setTimeout(function(){
-      leafMap.invalidateSize(true);
-      leafMap.setView([-23.55,-46.63],12);
-    },500);
-    // Resize listener
-    window.addEventListener('resize',function(){
-      if(leafMap)leafMap.invalidateSize(true);
-    });
+    leafMap.invalidateSize(true);
     atualizarCasaUI();
   }
-  initMap();
+  // Usar ResizeObserver para detectar quando o container tem tamanho real
+  if(window.ResizeObserver){
+    var ro=new ResizeObserver(function(entries){
+      for(var e of entries){
+        if(e.contentRect.height>50&&e.contentRect.width>50){
+          ro.disconnect();
+          criarLeaflet();
+          break;
+        }
+      }
+    });
+    ro.observe(el);
+    // Fallback após 2 segundos
+    setTimeout(criarLeaflet,2000);
+  } else {
+    setTimeout(criarLeaflet,300);
+  }
+  window.addEventListener('resize',function(){if(leafMap)leafMap.invalidateSize(true);});
 });
 
 // ── PANEL ──
@@ -1024,16 +1038,35 @@ function abrirNav(){
     var iC=L.divIcon({className:'',html:criarSetaHTML(calcAngle(rotaCoords,0)),iconSize:[70,70],iconAnchor:[35,35]});
     nMarker=L.marker(rotaCoords[0],{icon:iC}).addTo(navMap);
 
-    setTimeout(function(){
+    // Usar ResizeObserver no navMap também
+    var navEl=document.getElementById('nav-map');
+    var navIniciado=false;
+    function ativarNavMap(){
+      if(navIniciado)return;
+      navIniciado=true;
       navMap.invalidateSize(true);
       navMap.setView(rotaCoords[0],18);
-      var h=navMap.getSize().y;
-      var latRad=rotaCoords[0][0]*Math.PI/180;
-      var mpp=156543.03392*Math.cos(latRad)/Math.pow(2,18);
-      var offsetGraus=(mpp*h*0.3)/111320;
-      navMap.panTo([rotaCoords[0][0]+offsetGraus,rotaCoords[0][1]],{animate:false});
-      iniciarGPS();
-    },400);
+      setTimeout(function(){
+        navMap.invalidateSize(true);
+        var h=navMap.getSize().y;
+        var latRad=rotaCoords[0][0]*Math.PI/180;
+        var mpp=156543.03392*Math.cos(latRad)/Math.pow(2,18);
+        var offsetGraus=(mpp*h*0.3)/111320;
+        navMap.panTo([rotaCoords[0][0]+offsetGraus,rotaCoords[0][1]],{animate:false});
+        iniciarGPS();
+      },200);
+    }
+    if(window.ResizeObserver){
+      var roNav=new ResizeObserver(function(entries){
+        for(var e of entries){
+          if(e.contentRect.height>50){roNav.disconnect();ativarNavMap();break;}
+        }
+      });
+      roNav.observe(navEl);
+      setTimeout(ativarNavMap,1500);
+    } else {
+      setTimeout(ativarNavMap,500);
+    }
   },200);
 }
 
