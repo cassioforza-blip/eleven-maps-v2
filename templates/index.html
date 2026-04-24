@@ -419,7 +419,12 @@ var endCasa=localStorage.getItem('eleven_casa')||'';
 var dadosRota=null;
 
 // ── CLOCK ──
-function tick(){var n=new Date();document.getElementById('clock').textContent=String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0');}
+function tick(){
+  var el=document.getElementById('clock');
+  if(!el)return;
+  var n=new Date();
+  el.textContent=String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0');
+}
 tick(); setInterval(tick,1000);
 
 // ── MAP INIT ──
@@ -1084,7 +1089,8 @@ function resetNav(){
   document.getElementById('nav-play').textContent='▶ Iniciar GPS';
   document.getElementById('nav-pb').style.width='0%';
   document.getElementById('nav-dist').textContent='Rota: '+(dadosRota?.distKm||'?')+' km';
-  document.getElementById('nav-eta').textContent='Chegada: '+(dadosRota?.calcData?.duracao_total_min||'?')+' min';
+  document.getElementById('nav-eta-time').textContent='—';
+  document.getElementById('nav-eta-min').textContent='—';
   if(nMarker&&rotaCoords.length)nMarker.setLatLng(rotaCoords[0]);
   if(navMap&&rotaCoords.length)navMap.setView(rotaCoords[0],18);
 }
