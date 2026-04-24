@@ -9,11 +9,11 @@
   <link rel="manifest" href="/static/manifest.json"/>
   <title>Eleven Maps</title>
   <!-- HERE Maps JS API para navegação 3D -->
-  <script src="https://js.api.here.com/v3/3.1/mapsjs-core.js"></script>
-  <script src="https://js.api.here.com/v3/3.1/mapsjs-service.js"></script>
-  <script src="https://js.api.here.com/v3/3.1/mapsjs-ui.js"></script>
-  <script src="https://js.api.here.com/v3/3.1/mapsjs-mapevents.js"></script>
-  <link rel="stylesheet" href="https://js.api.here.com/v3/3.1/mapsjs-ui.css"/>
+  <script src="https://js.api.here.com/v3/3.1/mapsjs-core.js" type="text/javascript" charset="utf-8"></script>
+  <script src="https://js.api.here.com/v3/3.1/mapsjs-service.js" type="text/javascript" charset="utf-8"></script>
+  <script src="https://js.api.here.com/v3/3.1/mapsjs-ui.js" type="text/javascript" charset="utf-8"></script>
+  <script src="https://js.api.here.com/v3/3.1/mapsjs-mapevents.js" type="text/javascript" charset="utf-8"></script>
+  <link rel="stylesheet" type="text/css" href="https://js.api.here.com/v3/3.1/mapsjs-ui.css"/>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/flexpolyline@1.0.0/src/flexpolyline.min.js"></script>
   <style>
@@ -629,13 +629,17 @@ function getTileUrl(){
 }
 
 window.addEventListener('load',function(){
-  leafMap=L.map('map',{zoomControl:true,attributionControl:false}).setView([-23.55,-46.63],12);
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',{
-    maxZoom:19,subdomains:'abcd',
-    errorTileUrl:'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVQI12NgAAIABQAABjE+ibYAAAAASUVORK5CYII='
-  }).addTo(leafMap);
-  L.control.attribution({prefix:'© OpenStreetMap'}).addTo(leafMap);
-  atualizarCasaUI();
+  // Pequeno delay para garantir que o DOM está com tamanho correto
+  setTimeout(function(){
+    leafMap=L.map('map',{zoomControl:true,attributionControl:false}).setView([-23.55,-46.63],12);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',{
+      maxZoom:19,subdomains:'abcd',
+      errorTileUrl:'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVQI12NgAAIABQAABjE+ibYAAAAASUVORK5CYII='
+    }).addTo(leafMap);
+    L.control.attribution({prefix:'© OpenStreetMap'}).addTo(leafMap);
+    leafMap.invalidateSize(true);
+    atualizarCasaUI();
+  },100);
 });
 
 // ── PANEL ──
@@ -980,42 +984,53 @@ var hereMarkerSeta=null, herePolyline=null, hereMarkerDest=null;
 
 function iniciarHereMap(divId){
   if(hereMapObj){
-    hereMapObj.dispose();
-    hereMapObj=null;herePlatform=null;hereBehavior=null;
+    try{hereMapObj.dispose();}catch(e){}
+    hereMapObj=null;herePlatform=null;
     hereMarkerSeta=null;herePolyline=null;hereMarkerDest=null;
   }
 
-  herePlatform=new H.service.Platform({'apikey':HERE_KEY});
-  var defaultLayers=herePlatform.createDefaultLayers();
+  try{
+    herePlatform=new H.service.Platform({'apikey':HERE_KEY});
+    var defaultLayers=herePlatform.createDefaultLayers();
 
-  var hora=new Date().getHours();
-  var temaEscuro=hora>=18||hora<6;
-  var layer=temaEscuro
-    ?defaultLayers.vector.normal.traffic
-    :defaultLayers.vector.normal.map;
+    var hora=new Date().getHours();
+    var temaEscuro=hora>=18||hora<6;
+    var layer=temaEscuro
+      ?defaultLayers.vector.normal.traffic
+      :defaultLayers.vector.normal.map;
 
-  hereMapObj=new H.Map(
-    document.getElementById(divId),
-    layer,
-    {
+    var div=document.getElementById(divId);
+    // Garantir que o div tem tamanho
+    div.style.cssText='position:absolute;inset:0;width:100%;height:100%;z-index:1;';
+
+    hereMapObj=new H.Map(div, layer,{
       zoom:17,
       center:{lat:rotaCoords[0][0],lng:rotaCoords[0][1]},
       pixelRatio:window.devicePixelRatio||1
-    }
-  );
+    });
 
-  // Inclinar mapa em perspectiva 3D (pitch = 60°)
-  hereMapObj.getViewModel().setLookAtData({
-    position:{lat:rotaCoords[0][0],lng:rotaCoords[0][1]},
-    zoom:17,
-    tilt:60,   // inclinação real estilo Waze
-    heading:0
-  });
+    // Comportamento de mapa (pan/zoom desabilitado durante nav)
+    var behavior=new H.mapevents.Behavior(new H.mapevents.MapEvents(hereMapObj));
+    behavior.disable(H.mapevents.Behavior.Feature.DBL_TAP_ZOOM);
 
-  // Resize automático
-  window.addEventListener('resize',function(){if(hereMapObj)hereMapObj.getViewPort().resize();});
+    // Inclinação 3D inicial
+    hereMapObj.getViewModel().setLookAtData({
+      position:{lat:rotaCoords[0][0],lng:rotaCoords[0][1]},
+      zoom:17,
+      tilt:0,
+      heading:0
+    });
 
-  return hereMapObj;
+    window.addEventListener('resize',function(){
+      if(hereMapObj)hereMapObj.getViewPort().resize();
+    });
+
+    return hereMapObj;
+  }catch(e){
+    console.error('HERE Maps init error:',e);
+    toast('⚠️ Erro ao iniciar mapa HERE: '+e.message);
+    return null;
+  }
 }
 
 function abrirNav(){
