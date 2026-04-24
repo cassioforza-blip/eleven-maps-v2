@@ -852,57 +852,76 @@ function calcCamOffset(pos, idx){
 
 function abrirNav(){
   if(!rotaCoords.length){toast('Calcule uma rota primeiro!');return;}
+
+  // Mostrar overlay primeiro
   document.getElementById('nav-overlay').classList.add('show');
   navIdx=0;navPlaying=false;modo3D=false;
-  document.getElementById('nav-play').textContent='▶ Iniciar';
   document.getElementById('nav-pb').style.width='0%';
-  document.getElementById('nav-dist').textContent='Rota: '+(dadosRota?.distKm||'?')+' km';
-  document.getElementById('nav-eta').textContent='Chegada: '+(dadosRota?.calcData?.duracao_total_min||'?')+' min';
-  document.getElementById('nav-next-dist').textContent='Siga a rota';
+  document.getElementById('nav-next-dist').textContent='—';
   document.getElementById('nav-next-street').textContent='Navegação iniciada';
+  document.getElementById('nav-dist').textContent='Rota: '+(dadosRota?.distKm||'?')+' km';
+  document.getElementById('nav-eta-time').textContent='—';
+  document.getElementById('nav-eta-min').textContent='—';
 
-  // Garantir que nav-map ocupa 100% sem transform
-  var nm=document.getElementById('nav-map');
-  nm.style.transform='none';
-  nm.style.position='absolute';
-  nm.style.inset='0';
-  nm.style.width='100%';
-  nm.style.height='100%';
-
-  if(!navMap){
-    navMap=L.map('nav-map',{zoomControl:false,attributionControl:false,dragging:false,scrollWheelZoom:false});
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{maxZoom:19,subdomains:'abcd'}).addTo(navMap);
+  // Destruir mapa anterior se existir (evita bug de tamanho)
+  if(navMap){
+    navMap.remove();
+    navMap=null;
+    nPolyline=null;
+    nMarker=null;
   }
 
-  setTimeout(()=>{
-    navMap.invalidateSize();
-    // Centralizar na posição inicial com câmera deslocada para cima
-    // Isso faz a seta aparecer na parte inferior da tela
+  // Aguardar overlay ficar visível antes de criar o mapa
+  setTimeout(function(){
+    var nm=document.getElementById('nav-map');
+    nm.style.cssText='position:absolute;inset:0;width:100%;height:100%;z-index:1;';
+
+    navMap=L.map('nav-map',{
+      zoomControl:false,
+      attributionControl:false,
+      dragging:false,
+      scrollWheelZoom:false,
+      tap:false
+    });
+
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{
+      maxZoom:19,
+      subdomains:'abcd'
+    }).addTo(navMap);
+
     navMap.setView(rotaCoords[0],18);
-    // Deslocar câmera: mover 30% da altura para cima em pixels
-    var h=navMap.getSize().y;
-    navMap.panBy([0, -Math.round(h*0.28)], {animate:false});
-  },150);
 
-  if(nPolyline)navMap.removeLayer(nPolyline);
-  nPolyline=L.polyline(rotaCoords,{color:'#48bfe3',weight:8,opacity:0.95}).addTo(navMap);
+    // Rota
+    nPolyline=L.polyline(rotaCoords,{color:'#48bfe3',weight:8,opacity:0.95}).addTo(navMap);
 
-  // Bandeira amarela no destino
-  var flagHtml='<div style="display:flex;flex-direction:column;align-items:center;transform:translate(-4px,-40px)">'+
-    '<div style="width:26px;height:4px;background:#facc15;border-radius:2px;position:relative;">'+
-    '<div style="position:absolute;left:0;top:-15px;width:0;height:0;border-left:18px solid #facc15;border-top:11px solid transparent;border-bottom:11px solid transparent;"></div>'+
-    '</div>'+
-    '<div style="width:4px;height:26px;background:#facc15;border-radius:2px;margin-top:-1px;"></div>'+
-    '</div>';
-  var iD=L.divIcon({className:'',html:flagHtml,iconSize:[36,44],iconAnchor:[4,40]});
-  L.marker(rotaCoords[rotaCoords.length-1],{icon:iD}).addTo(navMap);
+    // Bandeira no destino
+    var flagHtml='<div style="display:flex;flex-direction:column;align-items:center;transform:translate(-4px,-40px)">'+
+      '<div style="width:26px;height:4px;background:#facc15;border-radius:2px;position:relative;">'+
+      '<div style="position:absolute;left:0;top:-15px;width:0;height:0;border-left:18px solid #facc15;border-top:11px solid transparent;border-bottom:11px solid transparent;"></div>'+
+      '</div>'+
+      '<div style="width:4px;height:26px;background:#facc15;border-radius:2px;margin-top:-1px;"></div>'+
+      '</div>';
+    var iD=L.divIcon({className:'',html:flagHtml,iconSize:[36,44],iconAnchor:[4,40]});
+    L.marker(rotaCoords[rotaCoords.length-1],{icon:iD}).addTo(navMap);
 
-  // Seta grande estilo Waze
-  var angle=calcAngle(rotaCoords,0);
-  var arrowHtml=criarSetaHTML(angle);
-  var iC=L.divIcon({className:'',html:arrowHtml,iconSize:[60,60],iconAnchor:[30,30]});
-  if(nMarker)navMap.removeLayer(nMarker);
-  nMarker=L.marker(rotaCoords[0],{icon:iC}).addTo(navMap);
+    // Seta inicial
+    var angle=calcAngle(rotaCoords,0);
+    var iC=L.divIcon({className:'',html:criarSetaHTML(angle),iconSize:[60,60],iconAnchor:[30,30]});
+    nMarker=L.marker(rotaCoords[0],{icon:iC}).addTo(navMap);
+
+    // Forçar redimensionamento e posicionar câmera
+    setTimeout(function(){
+      navMap.invalidateSize(true);
+      navMap.setView(rotaCoords[0],18);
+      var h=navMap.getSize().y;
+      navMap.panBy([0,-Math.round(h*0.3)],{animate:false});
+
+      // Iniciar GPS após mapa pronto
+      iniciarGPS();
+    },300);
+
+  },200);
+}
 
   iniciarGPS();
 }
