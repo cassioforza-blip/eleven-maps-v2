@@ -624,43 +624,34 @@ function getTileUrl(){
 }
 
 window.addEventListener('load',function(){
-  // Inicializar mapa usando ResizeObserver para garantir tamanho correto
-  var el=document.getElementById('map');
-  var mapIniciado=false;
   function criarLeaflet(){
-    if(mapIniciado)return;
-    mapIniciado=true;
-    leafMap=L.map('map',{
-      zoomControl:true,
-      attributionControl:false,
-      preferCanvas:true
-    });
+    // Forçar altura explícita no container do mapa
+    var header=document.querySelector('header');
+    var headerH=header?header.offsetHeight:58;
+    var mapwrap=document.querySelector('.mapwrap');
+    var dispH=window.innerHeight-headerH;
+    mapwrap.style.height=dispH+'px';
+    var el=document.getElementById('map');
+    el.style.width=mapwrap.offsetWidth+'px';
+    el.style.height=dispH+'px';
+
+    leafMap=L.map('map',{zoomControl:true,attributionControl:false,preferCanvas:true});
     L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',{
       maxZoom:19,subdomains:'abcd'
     }).addTo(leafMap);
     L.control.attribution({prefix:'© OpenStreetMap'}).addTo(leafMap);
     leafMap.setView([-23.55,-46.63],12);
-    leafMap.invalidateSize(true);
+
+    window.addEventListener('resize',function(){
+      if(!leafMap)return;
+      var h2=window.innerHeight-(document.querySelector('header')?document.querySelector('header').offsetHeight:58);
+      mapwrap.style.height=h2+'px';
+      el.style.height=h2+'px';
+      leafMap.invalidateSize(true);
+    });
     atualizarCasaUI();
   }
-  // Usar ResizeObserver para detectar quando o container tem tamanho real
-  if(window.ResizeObserver){
-    var ro=new ResizeObserver(function(entries){
-      for(var e of entries){
-        if(e.contentRect.height>50&&e.contentRect.width>50){
-          ro.disconnect();
-          criarLeaflet();
-          break;
-        }
-      }
-    });
-    ro.observe(el);
-    // Fallback após 2 segundos
-    setTimeout(criarLeaflet,2000);
-  } else {
-    setTimeout(criarLeaflet,300);
-  }
-  window.addEventListener('resize',function(){if(leafMap)leafMap.invalidateSize(true);});
+  setTimeout(criarLeaflet,100);
 });
 
 // ── PANEL ──
