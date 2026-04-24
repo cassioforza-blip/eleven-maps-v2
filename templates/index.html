@@ -918,10 +918,11 @@ function abrirNav(){
     setTimeout(function(){
       navMap.invalidateSize(true);
       navMap.setView(rotaCoords[0],18);
-      var h=navMap.getSize().y;
-      navMap.panBy([0,-Math.round(h*0.3)],{animate:false});
-
-      // Iniciar GPS após mapa pronto
+      // Offset: desloca câmera para norte para seta aparecer na parte inferior
+      var bounds=navMap.getBounds();
+      var latSpan=bounds.getNorth()-bounds.getSouth();
+      var camLat=rotaCoords[0][0]+latSpan*0.28;
+      navMap.setView([camLat,rotaCoords[0][1]],18,{animate:false});
       iniciarGPS();
     },300);
 
@@ -988,10 +989,12 @@ function iniciarGPS(){
       var iC=L.divIcon({className:'',html:arrowHtml,iconSize:[60,60],iconAnchor:[30,30]});
       if(nMarker){nMarker.setIcon(iC);nMarker.setLatLng([lat,lng]);}
 
-      // Câmera: seta na parte inferior
-      navMap.setView([lat,lng],18,{animate:true,duration:0.5});
-      var h=navMap.getSize().y;
-      setTimeout(()=>navMap.panBy([0,-Math.round(h*0.3)],{animate:false}),100);
+      // Câmera: offset em graus para seta ficar na parte inferior
+      // Calcula quantos graus de latitude correspondem a 30% da tela
+      var bounds=navMap.getBounds();
+      var latSpan=bounds.getNorth()-bounds.getSouth();
+      var camLat=lat + latSpan*0.28; // desloca câmera para norte → seta vai para baixo
+      navMap.setView([camLat,lng],18,{animate:true,duration:0.4,noMoveStart:true});
 
       // Distância percorrida
       if(ultimaPosGPS){
