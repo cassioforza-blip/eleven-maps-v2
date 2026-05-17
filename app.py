@@ -14,12 +14,33 @@ def dentro_de_sp(lat, lon):
 
 
 def geocodificar_endereco(texto):
+    import re
     headers = {"User-Agent": USER_AGENT}
+    texto = texto.strip()
+
+    # Detectar número no endereço sem vírgula (ex: "Rua Luis Delpi 257 Vila Taqueri")
+    # e reformatar como "Rua Luis Delpi, 257, Vila Taqueri"
+    match = re.match(r'^(.*?)\s+(\d+)\s*(.*)$', texto)
+    if match:
+        rua = match.group(1).strip()
+        numero = match.group(2)
+        bairro = match.group(3).strip()
+        if bairro:
+            texto_formatado = f"{rua}, {numero}, {bairro}"
+        else:
+            texto_formatado = f"{rua}, {numero}"
+    else:
+        texto_formatado = texto
+
     tentativas = [
-        f"{texto.strip()}, São Paulo, Brasil",
-        f"{texto.strip()}, SP, Brasil",
-        texto.strip(),
+        f"{texto_formatado}, São Paulo, SP, Brasil",
+        f"{texto_formatado}, São Paulo, Brasil",
+        f"{texto}, São Paulo, SP, Brasil",
+        f"{texto}, São Paulo, Brasil",
+        f"{texto}, SP, Brasil",
+        texto,
     ]
+
     for consulta in tentativas:
         try:
             r = requests.get(NOMINATIM_URL, params={
@@ -36,6 +57,23 @@ def geocodificar_endereco(texto):
                     return lat, lon, ", ".join(p.strip() for p in partes[:4])
         except Exception:
             continue
+
+    # Última tentativa: busca sem bounded para ampliar o raio
+    try:
+        r = requests.get(NOMINATIM_URL, params={
+            "q": f"{texto_formatado}, São Paulo",
+            "format": "jsonv2", "limit": 5,
+            "addressdetails": 1, "countrycodes": "br",
+        }, headers=headers, timeout=10)
+        for local in r.json():
+            lat, lon = float(local["lat"]), float(local["lon"])
+            if dentro_de_sp(lat, lon):
+                nome = local.get("display_name", texto)
+                partes = nome.split(",")
+                return lat, lon, ", ".join(p.strip() for p in partes[:4])
+    except Exception:
+        pass
+
     return None
 
 
