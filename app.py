@@ -79,18 +79,18 @@ def geocodificar_endereco(texto):
 
 def sugerir_locais(texto):
     try:
+        import re
         headers = {"User-Agent": USER_AGENT}
         texto = texto.strip()
 
-        # Detectar se tem número no endereço (ex: "Rua X, 123")
-        # Tentar busca estruturada primeiro se tiver vírgula + número
-        import re
-        tem_numero = bool(re.search(r',\s*\d+', texto))
+        # Detectar número no endereço — com ou sem vírgula
+        # Ex: "Rua X, 257" ou "Rua X 257"
+        tem_virgula_numero = bool(re.search(r',\s*\d+', texto))
+        match_sem_virgula = re.match(r'^(.*?[a-zA-ZÀ-ú])\s+(\d+)\s*(.*)$', texto)
 
         tentativas_query = []
 
-        if tem_numero:
-            # Separar rua do número para busca estruturada
+        if tem_virgula_numero:
             partes_end = re.split(r',\s*', texto, maxsplit=1)
             rua = partes_end[0].strip()
             numero = partes_end[1].strip() if len(partes_end) > 1 else ''
@@ -100,6 +100,23 @@ def sugerir_locais(texto):
                 f"{texto}, São Paulo, SP, Brasil",
                 f"{texto}, São Paulo",
             ]
+        elif match_sem_virgula:
+            rua = match_sem_virgula.group(1).strip()
+            numero = match_sem_virgula.group(2)
+            bairro = match_sem_virgula.group(3).strip()
+            if bairro:
+                tentativas_query = [
+                    f"{rua}, {numero}, {bairro}, São Paulo, SP, Brasil",
+                    f"{rua}, {numero}, São Paulo, SP, Brasil",
+                    f"{rua} {numero}, {bairro}, São Paulo",
+                    f"{texto}, São Paulo, SP, Brasil",
+                ]
+            else:
+                tentativas_query = [
+                    f"{rua}, {numero}, São Paulo, SP, Brasil",
+                    f"{rua} {numero}, São Paulo, SP",
+                    f"{texto}, São Paulo, SP, Brasil",
+                ]
         else:
             tentativas_query = [
                 f"{texto}, São Paulo",
@@ -126,9 +143,23 @@ def sugerir_locais(texto):
                     lat, lon = float(local["lat"]), float(local["lon"])
                     if not dentro_de_sp(lat, lon):
                         continue
-                    nome = local.get("display_name", "")
-                    partes = nome.split(",")
-                    nome_curto = ", ".join(p.strip() for p in partes[:4])
+
+                    # Montar nome incluindo número da casa se disponível
+                    addr = local.get("address", {})
+                    house_number = addr.get("house_number", "")
+                    road = addr.get("road", addr.get("pedestrian", ""))
+                    suburb = addr.get("suburb", addr.get("neighbourhood", addr.get("city_district", "")))
+                    city = addr.get("city", addr.get("town", "São Paulo"))
+
+                    if road and house_number:
+                        nome_curto = f"{road}, {house_number}"
+                        if suburb:
+                            nome_curto += f", {suburb}"
+                        nome_curto += f", {city}"
+                    else:
+                        nome = local.get("display_name", "")
+                        partes = nome.split(",")
+                        nome_curto = ", ".join(p.strip() for p in partes[:4])
 
                     # Evitar duplicatas
                     chave = f"{lat:.4f},{lon:.4f}"
