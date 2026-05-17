@@ -90,9 +90,8 @@
 
     /* TRANSPORT */
     .tmodes{display:flex;gap:5px;}
-    .tmbtn{flex:1;padding:0.42rem 4px;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text-muted);font-size:0.7rem;cursor:pointer;transition:all 0.2s;text-align:center;display:flex;flex-direction:column;align-items:center;gap:2px;font-family:'Inter',sans-serif;}
-    .tmbtn span.tm-icon{font-size:0.9rem;}
-    .tmbtn span.tm-label{font-size:0.52rem;font-weight:600;letter-spacing:0.5px;text-transform:uppercase;}
+    .tmbtn{flex:1;padding:0.5rem 4px;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text-muted);font-size:0.7rem;cursor:pointer;transition:all 0.2s;text-align:center;font-family:'Inter',sans-serif;}
+    .tmbtn span.tm-label{font-size:0.64rem;font-weight:600;letter-spacing:0.5px;text-transform:uppercase;}
     .tmbtn.active{background:var(--accent);color:#fff;border-color:var(--accent);}
     .tmbtn:hover:not(.active){border-color:var(--accent);color:var(--accent);}
 
@@ -254,7 +253,7 @@
     <div class="form">
 
       <div class="ibanner" id="ibanner">
-        📲 Instale o Eleven Maps!
+        Instale o Eleven Maps!
         <button class="ibtn" onclick="installPWA()">Instalar</button>
       </div>
 
@@ -274,8 +273,8 @@
       <div class="field">
         <label>Origem</label>
         <div class="qrow">
-          <button class="qbtn" id="btnloc" onclick="usarLocalizacao()">📍 Minha localização</button>
-          <button class="qbtn" id="btnhome" onclick="usarCasa()">🏠 Casa</button>
+          <button class="qbtn" id="btnloc" onclick="usarLocalizacao()">Minha localização</button>
+          <button class="qbtn" id="btnhome" onclick="usarCasa()">Casa</button>
         </div>
         <div class="input-wrapper">
           <span class="marker-letter marker-alpha">α</span>
@@ -285,7 +284,7 @@
       </div>
 
       <div class="hsave">
-        <span id="hlbl">🏠 Endereço de casa não salvo</span>
+        <span id="hlbl">Endereço de casa não salvo</span>
         <button class="hsbtn" onclick="salvarCasa()">Salvar casa</button>
       </div>
 
@@ -303,10 +302,10 @@
       <div>
         <span class="slabel">Modo de Transporte</span>
         <div class="tmodes">
-          <button class="tmbtn active" id="tm-car" onclick="setTransporte('car')"><span class="tm-icon">🚗</span><span class="tm-label">Carro</span></button>
-          <button class="tmbtn" id="tm-walk" onclick="setTransporte('pedestrian')"><span class="tm-icon">🚶</span><span class="tm-label">A pé</span></button>
-          <button class="tmbtn" id="tm-bike" onclick="setTransporte('bicycle')"><span class="tm-icon">🚲</span><span class="tm-label">Bike</span></button>
-          <button class="tmbtn" id="tm-metro" onclick="setTransporte('publicTransport')"><span class="tm-icon">🚌</span><span class="tm-label">Público</span></button>
+          <button class="tmbtn active" id="tm-car" onclick="setTransporte('car')"><span class="tm-label">Carro</span></button>
+          <button class="tmbtn" id="tm-walk" onclick="setTransporte('pedestrian')"><span class="tm-label">A pé</span></button>
+          <button class="tmbtn" id="tm-bike" onclick="setTransporte('bicycle')"><span class="tm-label">Bike</span></button>
+          <button class="tmbtn" id="tm-metro" onclick="setTransporte('publicTransport')"><span class="tm-label">Público</span></button>
         </div>
       </div>
 
@@ -322,21 +321,21 @@
         <span class="slabel">Tipo de Rota</span>
         <div class="rmodes">
           <div class="rmrow">
-            <button class="rmbtn active" id="rm-fast" onclick="setModo('fast')">⚡ Mais rápida</button>
-            <button class="rmbtn" id="rm-short" onclick="setModo('short')">📏 Mais curta</button>
+            <button class="rmbtn active" id="rm-fast" onclick="setModo('fast')">Mais rápida</button>
+            <button class="rmbtn" id="rm-short" onclick="setModo('short')">Mais curta</button>
           </div>
           <div class="rmrow">
-            <button class="rmbtn active" id="rm-bairros" onclick="setTipoVia('bairros')">🏘️ Via bairros</button>
-            <button class="rmbtn" id="rm-principais" onclick="setTipoVia('principais')">🛣️ Vias principais</button>
+            <button class="rmbtn active" id="rm-bairros" onclick="setTipoVia('bairros')">Via bairros</button>
+            <button class="rmbtn" id="rm-principais" onclick="setTipoVia('principais')">Vias principais</button>
           </div>
         </div>
       </div>
 
       <button class="btn-primary" id="bcalc" onclick="calcularRota()">
-        <span id="bcalc-txt">🗺️ Calcular Rota</span>
+        <span id="bcalc-txt">Calcular Rota</span>
       </button>
 
-      <button class="bnav" id="bnav" onclick="abrirNav()">🧭 Iniciar Navegação</button>
+      <button class="bnav" id="bnav" onclick="abrirNav()">Iniciar Navegação</button>
 
       <button class="btn-primary" id="historyBtn" style="margin-top:0">Rotas Recentes</button>
       <div class="history-panel hidden" id="historyPanel">
@@ -359,7 +358,7 @@
           <div class="metric"><div class="metric-value" id="s-dist">—</div><div class="metric-label">Distância</div></div>
           <div class="metric"><div class="metric-value" id="s-total">—</div><div class="metric-label">Tempo Est.</div></div>
           <div class="metric"><div class="metric-value" id="s-trans">—</div><div class="metric-label">Trânsito</div></div>
-          <div class="metric"><div class="metric-value" id="s-semaf">—</div><div class="metric-label">🚦 Semáf.</div></div>
+          <div class="metric"><div class="metric-value" id="s-semaf">—</div><div class="metric-label">Semáforos</div></div>
         </div>
 
         <div class="tbreak" id="tbreak" style="margin-top:8px;">
@@ -518,7 +517,7 @@ async function calcularRota(){
   var endO=document.getElementById('origem').value.trim(),endD=document.getElementById('destino').value.trim();
   if(!endO||!endD){toast('Preencha origem e destino!');return;}
   var btn=document.getElementById('bcalc'),btxt=document.getElementById('bcalc-txt');
-  btn.disabled=true;btxt.textContent='⏳ Calculando...';
+  btn.disabled=true;btxt.textContent='Calculando...';
   document.getElementById('err').className='err';
   mostrarLoading();
   try{
@@ -564,12 +563,12 @@ async function calcularRota(){
     document.getElementById('results').classList.remove('hidden');
     if(modoTransporte==='publicTransport'){document.getElementById('tp-loading').style.display='none';renderizarTransportePublico(hereData,geo);}
     document.getElementById('tdot').style.cssText=`background:${trafficCor};box-shadow:0 0 8px ${trafficCor}`;
-    document.getElementById('ttxt').innerHTML=`🚦 Trânsito <b>${trafficStatus}</b>`+(trafficVel>0?` · ${trafficVel} km/h`:'');
+    document.getElementById('ttxt').innerHTML=`Trânsito <b>${trafficStatus}</b>`+(trafficVel>0?` · ${trafficVel} km/h`:'');
     document.getElementById('traf').className='traf show';
     document.getElementById('bnav').className='bnav show';
     dadosRota={distKm,durMin,calcData,geo,trafficStatus,trafficVel};
   }catch(e){esconderLoading();mostrarErro('Erro: '+e.message);}
-  finally{btn.disabled=false;btxt.textContent='🗺️ Calcular Rota';}
+  finally{btn.disabled=false;btxt.textContent='Calcular Rota';}
 }
 
 // ── DESENHAR ROTA ── (estilo Teseu com animação)
