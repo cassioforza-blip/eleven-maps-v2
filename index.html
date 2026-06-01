@@ -1,0 +1,820 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
+  <meta name="theme-color" content="#6c63ff"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-title" content="Eleven Maps"/>
+  <link rel="manifest" href="/static/manifest.json"/>
+  <title>Eleven Maps v2</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/flexpolyline@1.0.0/src/flexpolyline.min.js"></script>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --accent:#6c63ff;--accent2:#48bfe3;--text:#1a1d2e;
+      --muted:#6b7280;--border:#e2e8f0;--card:#fff;
+      --surface:#f8fafc;--bg:#f0f4f8;
+      --green:#22c55e;--yellow:#f59e0b;--red:#ef4444;
+    }
+    html,body{height:100%;font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);overflow:hidden;}
+
+    header{height:54px;padding:0 1rem;display:flex;align-items:center;gap:0.8rem;border-bottom:1px solid var(--border);background:#fff;position:relative;z-index:1000;flex-shrink:0;box-shadow:0 1px 8px rgba(0,0,0,0.07);}
+    .logo{width:30px;height:30px;background:linear-gradient(135deg,var(--accent),var(--accent2));border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px;}
+    header h1{font-family:'Syne',sans-serif;font-weight:800;font-size:1.1rem;}
+    header h1 span{background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+    .hright{margin-left:auto;display:flex;align-items:center;gap:6px;}
+    .hbtn{width:32px;height:32px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--muted);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;transition:all 0.2s;}
+    .hbtn:hover,.hbtn.on{background:var(--accent);color:#fff;border-color:var(--accent);}
+    #clock{font-family:'Syne',sans-serif;font-size:0.78rem;color:var(--muted);letter-spacing:1px;}
+    .badge{font-size:0.6rem;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--accent);border:1px solid var(--accent);padding:2px 7px;border-radius:20px;}
+
+    .layout{display:flex;height:calc(100vh - 54px);}
+
+    .panel{width:320px;min-width:320px;background:#fff;border-right:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto;z-index:100;box-shadow:2px 0 12px rgba(0,0,0,0.05);}
+    .panel.hidden{display:none;}
+    .pi{padding:1.1rem;display:flex;flex-direction:column;gap:0.95rem;}
+
+    .slabel{font-family:'Syne',sans-serif;font-size:0.65rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted);}
+
+    /* GPS SPEED */
+    .sbox{display:none;background:linear-gradient(135deg,var(--accent),var(--accent2));border-radius:12px;padding:0.85rem 1rem;color:#fff;align-items:center;gap:12px;}
+    .sbox.show{display:flex;}
+    .snum{font-family:'Syne',sans-serif;font-size:2rem;font-weight:800;line-height:1;}
+    .sunit{font-size:0.62rem;opacity:0.8;text-transform:uppercase;letter-spacing:1px;}
+    .sacc{font-size:0.65rem;opacity:0.7;margin-top:2px;}
+    .gpulse{width:8px;height:8px;border-radius:50%;background:#fff;animation:gp 1.5s infinite;flex-shrink:0;}
+    @keyframes gp{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.4;transform:scale(1.4)}}
+
+    /* ORIGIN QUICK */
+    .qrow{display:flex;gap:6px;}
+    .qbtn{flex:1;padding:0.48rem 5px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--muted);font-size:0.7rem;cursor:pointer;transition:all 0.2s;display:flex;align-items:center;justify-content:center;gap:3px;}
+    .qbtn:hover{border-color:var(--accent);color:var(--accent);}
+    .qbtn.hs{border-color:var(--accent2);color:var(--accent2);background:rgba(72,191,227,0.08);}
+
+    .fg{display:flex;flex-direction:column;gap:0.4rem;position:relative;}
+    .fl{font-size:0.72rem;font-weight:500;color:var(--muted);display:flex;align-items:center;gap:5px;}
+    .do{width:8px;height:8px;border-radius:50%;background:var(--accent2);display:inline-block;}
+    .dd{width:8px;height:8px;border-radius:50%;background:var(--accent);display:inline-block;}
+    input[type="text"]{background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:0.62rem 0.9rem;color:var(--text);font-family:'DM Sans',sans-serif;font-size:0.86rem;outline:none;transition:border-color 0.2s,box-shadow 0.2s;width:100%;}
+    input[type="text"]:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(108,99,255,0.12);}
+    input[type="text"]::placeholder{color:#b0b8c9;}
+
+    .hsave{display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:0.52rem 0.85rem;font-size:0.74rem;color:var(--muted);}
+    .hsave span{flex:1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;}
+    .hsbtn{background:var(--accent);color:#fff;border:none;border-radius:6px;padding:4px 10px;font-family:'Syne',sans-serif;font-size:0.67rem;font-weight:700;cursor:pointer;}
+
+    /* ROUTE TYPE */
+    .rmodes{display:flex;flex-direction:column;gap:6px;}
+    .rmrow{display:flex;gap:6px;}
+    .rmbtn{flex:1;padding:0.52rem;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--muted);font-family:'Syne',sans-serif;font-size:0.69rem;font-weight:700;cursor:pointer;transition:all 0.2s;text-align:center;}
+    .rmbtn.active{background:var(--accent);color:#fff;border-color:var(--accent);}
+
+    .bcalc{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;border:none;border-radius:10px;padding:0.8rem;font-family:'Syne',sans-serif;font-size:0.88rem;font-weight:700;cursor:pointer;transition:opacity 0.2s,transform 0.1s;display:flex;align-items:center;justify-content:center;gap:7px;}
+    .bcalc:hover{opacity:0.92;}
+    .bcalc:disabled{opacity:0.45;cursor:not-allowed;}
+
+    .bnav{background:#fff;color:var(--accent);border:2px solid var(--accent);border-radius:10px;padding:0.72rem;font-family:'Syne',sans-serif;font-size:0.85rem;font-weight:700;cursor:pointer;transition:all 0.2s;display:none;align-items:center;justify-content:center;gap:7px;}
+    .bnav.show{display:flex;}
+    .bnav:hover{background:var(--accent);color:#fff;}
+
+    .lbox{display:none;flex-direction:column;gap:0.48rem;}
+    .lbox.show{display:flex;}
+    .ls{font-size:0.75rem;color:var(--muted);display:flex;align-items:center;gap:7px;opacity:0.4;transition:opacity 0.3s;}
+    .ls.active{color:var(--accent2);opacity:1;}
+    .ls.done{color:var(--green);opacity:1;}
+    .sp{width:12px;height:12px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;}
+    @keyframes spin{to{transform:rotate(360deg)}}
+
+    .err{display:none;background:#fef2f2;border:1px solid #fecaca;border-radius:9px;padding:0.72rem 0.9rem;font-size:0.79rem;color:#dc2626;}
+    .err.show{display:block;}
+
+    .traf{display:none;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:0.62rem 0.9rem;font-size:0.77rem;}
+    .traf.show{display:flex;}
+    .tdot{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
+
+    .stats{display:grid;grid-template-columns:1fr 1fr;gap:0.58rem;}
+    .sc{background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:0.72rem 0.85rem;}
+    .sv{font-family:'Syne',sans-serif;font-size:1.2rem;font-weight:800;line-height:1;}
+    .sl{font-size:0.62rem;color:var(--muted);margin-top:3px;text-transform:uppercase;letter-spacing:0.5px;}
+    .sc.a .sv{color:var(--accent);}
+    .sc.g .sv{color:var(--green);}
+    .sc.b .sv{color:var(--accent2);}
+    .sc.y .sv{color:var(--yellow);}
+
+    /* TIME BREAKDOWN */
+    .tbreak{display:none;background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:0.72rem 0.9rem;font-size:0.74rem;}
+    .tbreak.show{display:block;}
+    .tbreak-title{font-family:'Syne',sans-serif;font-size:0.63rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:8px;}
+    .trow{display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid var(--border);}
+    .trow:last-child{border-bottom:none;font-weight:700;padding-top:6px;}
+    .trow span:first-child{color:var(--muted);}
+
+    .rnames{display:none;background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:0.72rem 0.9rem;font-size:0.75rem;line-height:1.7;}
+    .rnames.show{display:block;}
+    .rnl{color:var(--muted);font-size:0.64rem;text-transform:uppercase;letter-spacing:1px;}
+
+    .divider{height:1px;background:var(--border);}
+    .about{font-size:0.69rem;color:var(--muted);line-height:1.6;}
+    .about strong{color:var(--accent);}
+
+    .ibanner{display:none;background:linear-gradient(135deg,rgba(108,99,255,0.08),rgba(72,191,227,0.06));border:1px solid rgba(108,99,255,0.2);border-radius:9px;padding:0.72rem 0.9rem;font-size:0.75rem;align-items:center;gap:8px;}
+    .ibanner.show{display:flex;}
+    .ibtn{margin-left:auto;background:var(--accent);color:#fff;border:none;border-radius:6px;padding:4px 10px;font-family:'Syne',sans-serif;font-size:0.67rem;font-weight:700;cursor:pointer;}
+
+    /* MAP */
+    .mapwrap{flex:1;position:relative;}
+    #map{width:100%;height:100%;background:#e8f4f8;}
+
+    /* NAV OVERLAY */
+    #nav-overlay{display:none;position:absolute;inset:0;z-index:500;flex-direction:column;background:#0d0f14;}
+    #nav-overlay.show{display:flex;}
+    #nav-map{width:100%;flex:1;transition:transform 0.4s ease;}
+    #nav-map.tilt{transform:perspective(900px) rotateX(28deg) scale(1.18);transform-origin:bottom center;}
+
+    .nav-hud{background:linear-gradient(180deg,#0d0f14,#141720);padding:14px 18px 10px;display:flex;flex-direction:column;gap:8px;border-top:1px solid rgba(108,99,255,0.25);}
+    .nav-top{display:flex;align-items:center;gap:14px;}
+    .nav-spd{background:linear-gradient(135deg,var(--accent),var(--accent2));border-radius:13px;padding:9px 14px;text-align:center;min-width:66px;}
+    .nav-spd-n{font-family:'Syne',sans-serif;font-size:1.7rem;font-weight:800;color:#fff;line-height:1;}
+    .nav-spd-u{font-size:0.58rem;color:rgba(255,255,255,0.7);text-transform:uppercase;letter-spacing:1px;}
+    .nav-info{flex:1;}
+    .nav-dist{font-family:'Syne',sans-serif;font-size:1rem;font-weight:700;color:#e8eaf0;}
+    .nav-eta{font-size:0.75rem;color:#6b7280;margin-top:2px;}
+    .nav-pb-wrap{height:4px;background:#22263a;border-radius:4px;overflow:hidden;}
+    .nav-pb{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:4px;transition:width 0.2s;}
+
+    .nav-ctrl{display:flex;gap:7px;padding:9px 18px 13px;}
+    .nc{flex:1;padding:9px;border-radius:9px;border:none;font-family:'Syne',sans-serif;font-weight:700;font-size:0.8rem;cursor:pointer;transition:all 0.2s;}
+    .nc.play{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;}
+    .nc.stop{background:#22263a;color:#6b7280;border:1px solid #2a2d42;}
+    .nc.d3{background:#22263a;color:var(--accent2);border:1px solid #2a2d42;max-width:65px;}
+    .nc.cls{background:#22263a;color:#f87171;border:1px solid #2a2d42;max-width:48px;}
+
+    /* TRANSPORT MODES */
+    .tmodes{display:flex;gap:6px;margin-bottom:2px;}
+    .tmbtn{flex:1;padding:0.52rem 4px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--muted);font-size:0.75rem;cursor:pointer;transition:all 0.2s;text-align:center;display:flex;flex-direction:column;align-items:center;gap:2px;}
+    .tmbtn span.tm-icon{font-size:1.1rem;}
+    .tmbtn span.tm-label{font-size:0.58rem;font-family:'Syne',sans-serif;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;}
+    .tmbtn.active{background:var(--accent);color:#fff;border-color:var(--accent);}
+    .tmbtn:hover:not(.active){border-color:var(--accent);color:var(--accent);}
+
+    /* NAV FULLSCREEN */
+    #nav-overlay{display:none;position:fixed;inset:0;z-index:2000;flex-direction:column;background:#0d0f14;}
+    #nav-overlay.show{display:flex;}
+    #nav-map{width:100%;flex:1;transition:transform 0.4s ease;}
+    #nav-map.tilt{transform:perspective(900px) rotateX(28deg) scale(1.18);transform-origin:bottom center;}
+
+    /* NAV TOP BAR */
+    .nav-topbar{position:absolute;top:0;left:0;right:0;z-index:2100;display:flex;align-items:center;gap:10px;padding:10px 14px;background:linear-gradient(180deg,rgba(13,15,20,0.95),transparent);}
+    .nav-menu-btn{width:38px;height:38px;border-radius:10px;border:1px solid rgba(108,99,255,0.4);background:rgba(13,15,20,0.8);color:#e8eaf0;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(8px);}
+    .nav-title{font-family:'Syne',sans-serif;font-size:0.85rem;font-weight:700;color:#e8eaf0;opacity:0.8;}
+
+    /* SUGGESTIONS */
+    .sug{position:absolute;top:100%;left:0;right:0;z-index:500;background:#fff;border:1px solid var(--border);border-radius:9px;margin-top:3px;overflow:hidden;box-shadow:0 8px 24px rgba(0,0,0,0.1);display:none;}
+    .sug.open{display:block;}
+    .si{padding:0.52rem 0.9rem;font-size:0.78rem;color:var(--text);cursor:pointer;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:7px;transition:background 0.15s;}
+    .si:last-child{border-bottom:none;}
+    .si:hover{background:#f1f5f9;}
+
+    @media(max-width:768px){
+      .layout{flex-direction:column-reverse;}
+      .panel{width:100%;min-width:100%;height:auto;max-height:55vh;border-right:none;border-top:1px solid var(--border);box-shadow:0 -4px 20px rgba(0,0,0,0.1);overflow-y:auto;}
+      .panel.hidden{display:none;}
+      .mapwrap{flex:1;min-height:45vh;}
+      .tpanel{display:flex!important;}
+      .pi{padding:0.85rem;}
+      .stats{grid-template-columns:1fr 1fr 1fr 1fr;}
+    }
+    .tpanel{display:none;}
+  </style>
+</head>
+<body>
+<header>
+  <div class="logo">🗺️</div>
+  <h1><span>Eleven</span> Maps</h1>
+  <div class="hright">
+    <span id="clock"></span>
+    <div class="badge">v2</div>
+    <button class="hbtn tpanel" onclick="togglePanel()">☰</button>
+    <button class="hbtn" id="gps-btn" onclick="toggleGPS()" title="GPS">📍</button>
+    <button class="hbtn" id="ihbtn" style="display:none" onclick="installPWA()">📲</button>
+  </div>
+</header>
+
+<div class="layout">
+  <aside class="panel" id="panel">
+    <div class="pi">
+
+      <div class="ibanner" id="ibanner">
+        📲 Instale o Eleven Maps!
+        <button class="ibtn" onclick="installPWA()">Instalar</button>
+      </div>
+
+      <!-- GPS SPEED -->
+      <div class="sbox" id="sbox">
+        <div class="gpulse"></div>
+        <div>
+          <div style="display:flex;align-items:baseline;gap:3px;">
+            <span class="snum" id="snum">0</span>
+            <span class="sunit">km/h</span>
+          </div>
+          <div class="sacc" id="sacc">Obtendo GPS...</div>
+        </div>
+        <div style="margin-left:auto;text-align:right;font-size:0.63rem;color:rgba(255,255,255,0.6);" id="scoords">—</div>
+      </div>
+
+      <p class="slabel">Calcular Rota</p>
+
+      <!-- ORIGEM -->
+      <div class="fg">
+        <label class="fl"><span class="do"></span> Origem</label>
+        <div class="qrow">
+          <button class="qbtn" id="btnloc" onclick="usarLocalizacao()">📍 Minha localização</button>
+          <button class="qbtn" id="btnhome" onclick="usarCasa()">🏠 Casa</button>
+        </div>
+        <input type="text" id="origem" placeholder="Local, endereço, restaurante..." autocomplete="off" oninput="onInput('origem')" onblur="hideSug('origem')"/>
+        <div class="sug" id="sug-origem"></div>
+      </div>
+
+      <div class="hsave">
+        <span id="hlbl">🏠 Endereço de casa não salvo</span>
+        <button class="hsbtn" onclick="salvarCasa()">Salvar casa</button>
+      </div>
+
+      <!-- DESTINO -->
+      <div class="fg">
+        <label class="fl"><span class="dd"></span> Destino</label>
+        <input type="text" id="destino" placeholder="Shopping, hospital, bairro..." autocomplete="off" oninput="onInput('destino')" onblur="hideSug('destino')"/>
+        <div class="sug" id="sug-destino"></div>
+      </div>
+
+      <!-- MODO DE TRANSPORTE -->
+      <div>
+        <label class="fl" style="margin-bottom:7px;">🚗 Modo de Transporte</label>
+        <div class="tmodes">
+          <button class="tmbtn active" id="tm-car" onclick="setTransporte('car')">
+            <span class="tm-icon">🚗</span>
+            <span class="tm-label">Carro</span>
+          </button>
+          <button class="tmbtn" id="tm-walk" onclick="setTransporte('pedestrian')">
+            <span class="tm-icon">🚶</span>
+            <span class="tm-label">A pé</span>
+          </button>
+          <button class="tmbtn" id="tm-bike" onclick="setTransporte('bicycle')">
+            <span class="tm-icon">🚲</span>
+            <span class="tm-label">Bicicleta</span>
+          </button>
+          <button class="tmbtn" id="tm-metro" onclick="setTransporte('publicTransport')">
+            <span class="tm-icon">🚇</span>
+            <span class="tm-label">Metrô</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- TIPO ROTA -->
+      <div>
+        <label class="fl" style="margin-bottom:7px;">🛣️ Tipo de Rota</label>
+        <div class="rmodes">
+          <div class="rmrow">
+            <button class="rmbtn active" id="rm-fast" onclick="setModo('fast')">⚡ Mais rápida</button>
+            <button class="rmbtn" id="rm-short" onclick="setModo('short')">📏 Mais curta</button>
+          </div>
+          <div class="rmrow">
+            <button class="rmbtn active" id="rm-bairros" onclick="setTipoVia('bairros')">🏘️ Via bairros</button>
+            <button class="rmbtn" id="rm-principais" onclick="setTipoVia('principais')">🛣️ Vias principais</button>
+          </div>
+        </div>
+      </div>
+
+      <button class="bcalc" id="bcalc" onclick="calcularRota()">
+        <span>🗺️ Calcular Rota</span>
+      </button>
+
+      <button class="bnav" id="bnav" onclick="abrirNav()">
+        🧭 Iniciar Navegação
+      </button>
+
+      <div class="lbox" id="lbox"></div>
+      <div class="err" id="err"></div>
+
+      <div class="traf" id="traf">
+        <div class="tdot" id="tdot"></div>
+        <span id="ttxt">—</span>
+      </div>
+
+      <div class="stats" id="stats" style="display:none">
+        <div class="sc a"><div class="sv" id="s-dist">—</div><div class="sl">Distância km</div></div>
+        <div class="sc g"><div class="sv" id="s-total">—</div><div class="sl">Tempo total</div></div>
+        <div class="sc b"><div class="sv" id="s-trans">—</div><div class="sl">c/ Trânsito</div></div>
+        <div class="sc y"><div class="sv" id="s-semaf">—</div><div class="sl">🚦 Semáforos</div></div>
+      </div>
+
+      <div class="tbreak" id="tbreak">
+        <div class="tbreak-title">⏱ Detalhamento do Tempo</div>
+        <div class="trow"><span>Tempo base</span><span id="tb-base">—</span></div>
+        <div class="trow"><span>Atraso trânsito</span><span style="color:var(--red);" id="tb-trans">—</span></div>
+        <div class="trow"><span>🚦 Atraso semáforos</span><span style="color:var(--yellow);" id="tb-sem">—</span></div>
+        <div class="trow"><span>Tempo total estimado</span><span style="color:var(--accent);" id="tb-tot">—</span></div>
+      </div>
+
+      <div class="rnames" id="rnames">
+        <div class="rnl">Origem</div>
+        <div style="color:var(--text);font-weight:500;" id="rn-o">—</div>
+        <div style="height:4px"></div>
+        <div class="rnl">Destino</div>
+        <div style="color:var(--text);font-weight:500;" id="rn-d">—</div>
+      </div>
+
+      <div class="divider"></div>
+      <p class="about"><strong>Eleven Maps v2</strong> — Rotas via <strong>HERE Maps</strong>. GPS em tempo real. Estado de São Paulo.</p>
+    </div>
+  </aside>
+
+  <div class="mapwrap">
+    <div id="map"></div>
+
+    <!-- NAV OVERLAY FULLSCREEN -->
+    <div id="nav-overlay">
+      <div class="nav-topbar">
+        <button class="nav-menu-btn" onclick="fecharNav()" title="Voltar">☰</button>
+        <span class="nav-title">Eleven Maps — Navegação</span>
+      </div>
+      <div id="nav-map"></div>
+      <div class="nav-hud">
+        <div class="nav-top">
+          <div class="nav-spd">
+            <div class="nav-spd-n" id="nav-spd">0</div>
+            <div class="nav-spd-u">km/h</div>
+          </div>
+          <div class="nav-info">
+            <div class="nav-dist" id="nav-dist">—</div>
+            <div class="nav-eta" id="nav-eta">—</div>
+          </div>
+        </div>
+        <div class="nav-pb-wrap">
+          <div class="nav-pb" id="nav-pb" style="width:0%"></div>
+        </div>
+      </div>
+      <div class="nav-ctrl">
+        <button class="nc play" id="nav-play" onclick="togglePlay()">▶ Iniciar</button>
+        <button class="nc d3" id="btn3d" onclick="toggle3D()">2D</button>
+        <button class="nc stop" onclick="resetNav()">↺</button>
+        <button class="nc cls" onclick="fecharNav()">✕</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const HERE_KEY = "v2-dbftYZbkKKKWfTnOjlbL968BwE-CEoQXunJFS_-A";
+
+// ── STATE ──
+var leafMap=null, navMap=null;
+var rotaCoords=[], coordOrig=null, coordDest=null;
+var mPolyline=null, mOrig=null, mDest=null;
+var nPolyline=null, nMarker=null;
+var navIdx=0, navTimer=null, navPlaying=false, modo3D=false;
+var gpsWatch=null, gpsAtivo=false;
+var modoRota='fast', tipoVia='bairros', modoTransporte='car';
+var endCasa=localStorage.getItem('eleven_casa')||'';
+var dadosRota=null;
+
+// ── CLOCK ──
+function tick(){var n=new Date();document.getElementById('clock').textContent=String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0');}
+tick(); setInterval(tick,1000);
+
+// ── MAP INIT ──
+window.addEventListener('load',function(){
+  leafMap=L.map('map',{zoomControl:true,attributionControl:false}).setView([-23.55,-46.63],12);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+    maxZoom: 19,
+    subdomains: 'abcd',
+    attribution: '© OpenStreetMap © CARTO'
+  }).addTo(leafMap);
+  L.control.attribution({prefix:'© OpenStreetMap'}).addTo(leafMap);
+  atualizarCasaUI();
+});
+
+// ── PANEL ──
+function togglePanel(){document.getElementById('panel').classList.toggle('hidden');}
+
+// ── MODES ──
+function setModo(m){
+  modoRota=m;
+  document.getElementById('rm-fast').classList.toggle('active',m==='fast');
+  document.getElementById('rm-short').classList.toggle('active',m==='short');
+}
+function setTipoVia(t){
+  tipoVia=t;
+  document.getElementById('rm-bairros').classList.toggle('active',t==='bairros');
+  document.getElementById('rm-principais').classList.toggle('active',t==='principais');
+}
+function setTransporte(t){
+  modoTransporte=t;
+  var btns=['car','walk','bike','metro'];
+  var vals=['car','pedestrian','bicycle','publicTransport'];
+  btns.forEach((b,i)=>{document.getElementById('tm-'+b).classList.toggle('active',vals[i]===t);});
+  // Metrô e a pé não usam tipo de via
+  var hideVia=t==='pedestrian'||t==='bicycle'||t==='publicTransport';
+  document.querySelector('.rmodes').style.opacity=hideVia?'0.35':'1';
+  document.querySelector('.rmodes').style.pointerEvents=hideVia?'none':'all';
+}
+
+// ── CASA ──
+function atualizarCasaUI(){
+  var l=document.getElementById('hlbl'),b=document.getElementById('btnhome');
+  if(endCasa){l.textContent='🏠 '+endCasa.substring(0,30)+(endCasa.length>30?'...':'');b.classList.add('hs');}
+  else{l.textContent='🏠 Endereço de casa não salvo';b.classList.remove('hs');}
+}
+function salvarCasa(){
+  var v=document.getElementById('origem').value.trim();
+  if(!v){toast('Digite um endereço de origem primeiro!');return;}
+  endCasa=v;localStorage.setItem('eleven_casa',endCasa);atualizarCasaUI();toast('🏠 Casa salva!');
+}
+function usarCasa(){
+  if(!endCasa){toast('Salve um endereço de casa primeiro!');return;}
+  document.getElementById('origem').value=endCasa;
+}
+
+// ── GPS ──
+function toggleGPS(){gpsAtivo?pararGPS():iniciarGPS();}
+function iniciarGPS(){
+  if(!navigator.geolocation){toast('GPS não disponível.');return;}
+  gpsAtivo=true;document.getElementById('gps-btn').classList.add('on');
+  document.getElementById('sbox').classList.add('show');
+  gpsWatch=navigator.geolocation.watchPosition(function(p){
+    var kmh=p.coords.speed!==null?Math.round(p.coords.speed*3.6):0;
+    document.getElementById('snum').textContent=kmh;
+    document.getElementById('sacc').textContent='±'+Math.round(p.coords.accuracy)+'m';
+    document.getElementById('scoords').textContent=p.coords.latitude.toFixed(5)+'\n'+p.coords.longitude.toFixed(5);
+    if(navPlaying)document.getElementById('nav-spd').textContent=kmh;
+  },function(e){document.getElementById('sacc').textContent='Erro: '+e.message;},{enableHighAccuracy:true,maximumAge:1000});
+}
+function pararGPS(){
+  if(gpsWatch!==null){navigator.geolocation.clearWatch(gpsWatch);gpsWatch=null;}
+  gpsAtivo=false;document.getElementById('gps-btn').classList.remove('on');
+  document.getElementById('sbox').classList.remove('show');
+}
+function usarLocalizacao(){
+  if(!navigator.geolocation){toast('GPS não disponível.');return;}
+  document.getElementById('btnloc').textContent='⏳';
+  navigator.geolocation.getCurrentPosition(function(p){
+    fetch('https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat='+p.coords.latitude+'&lon='+p.coords.longitude,{headers:{'User-Agent':'eleven-maps-v2/1.0'}})
+    .then(r=>r.json()).then(d=>{
+      var partes=(d.display_name||'').split(',');
+      document.getElementById('origem').value=partes.slice(0,3).join(',').trim();
+      document.getElementById('btnloc').textContent='📍 Minha localização';
+      toast('📍 Localização obtida!');
+    }).catch(()=>{
+      document.getElementById('origem').value=p.coords.latitude.toFixed(6)+','+p.coords.longitude.toFixed(6);
+      document.getElementById('btnloc').textContent='📍 Minha localização';
+    });
+  },function(e){document.getElementById('btnloc').textContent='📍 Minha localização';toast('Erro GPS: '+e.message);},{enableHighAccuracy:true,timeout:15000});
+}
+
+// ── AUTOCOMPLETE ──
+var sugT={};
+function onInput(f){var v=document.getElementById(f).value.trim();clearTimeout(sugT[f]);if(v.length<3){hideSug(f);return;}sugT[f]=setTimeout(()=>fetchSug(f,v),350);}
+function fetchSug(f,q){fetch('/sugestoes?q='+encodeURIComponent(q)).then(r=>r.json()).then(d=>showSug(f,d)).catch(()=>{});}
+function showSug(f,items){
+  var b=document.getElementById('sug-'+f);
+  if(!items.length){b.classList.remove('open');return;}
+  b.innerHTML=items.map(it=>`<div class="si" onmousedown="selSug('${f}','${it.nome.replace(/'/g,"\\'")}')"><span>${it.icone}</span>${it.nome}</div>`).join('');
+  b.classList.add('open');
+}
+function selSug(f,n){document.getElementById(f).value=n;document.getElementById('sug-'+f).classList.remove('open');}
+function hideSug(f){setTimeout(()=>{var b=document.getElementById('sug-'+f);if(b)b.classList.remove('open');},150);}
+
+// ── STEPS ──
+function setSteps(n){
+  var labels=['Geocodificando endereços...','Calculando rota HERE Maps...','Buscando trânsito...','Desenhando no mapa...'];
+  document.getElementById('lbox').innerHTML=labels.map((lb,i)=>{
+    var idx=i+1;
+    if(idx<n)return`<div class="ls done"><span style="color:var(--green)">✓</span> ${lb}</div>`;
+    if(idx===n)return`<div class="ls active"><div class="sp"></div> ${lb}</div>`;
+    return`<div class="ls">${lb}</div>`;
+  }).join('');
+}
+
+// ── CALCULAR ROTA ──
+async function calcularRota(){
+  var orig=document.getElementById('origem').value.trim();
+  var dest=document.getElementById('destino').value.trim();
+  var btn=document.getElementById('bcalc');
+  if(!orig||!dest){mostrarErro('Preencha os dois campos.');return;}
+
+  document.getElementById('err').className='err';
+  document.getElementById('stats').style.display='none';
+  document.getElementById('rnames').className='rnames';
+  document.getElementById('traf').className='traf';
+  document.getElementById('tbreak').className='tbreak';
+  document.getElementById('bnav').className='bnav';
+  btn.disabled=true;btn.querySelector('span').textContent='⏳ Calculando...';
+  document.getElementById('lbox').className='lbox show';
+
+  var step=1;setSteps(step);
+  var timer=setInterval(()=>{step=Math.min(step+1,4);setSteps(step);},2000);
+
+  try{
+    // STEP 1: Geocode via backend
+    var geoResp=await fetch('/geocode',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({origem:orig,destino:dest})});
+    var geo=await geoResp.json();
+    if(!geoResp.ok){mostrarErro(geo.erro||'Erro ao localizar endereços.');clearInterval(timer);return;}
+
+    coordOrig=[geo.origem.lat,geo.origem.lon];
+    coordDest=[geo.destino.lat,geo.destino.lon];
+
+    // STEP 2: HERE Routing API (direto do browser)
+    setSteps(2);
+    var hereUrl='https://router.hereapi.com/v8/routes?'+new URLSearchParams({
+      apiKey:HERE_KEY,
+      transportMode:modoTransporte,
+      origin:`${geo.origem.lat},${geo.origem.lon}`,
+      destination:`${geo.destino.lat},${geo.destino.lon}`,
+      return:'polyline,summary',
+      routingMode:modoRota,
+    });
+
+    var hereResp=await fetch(hereUrl);
+    var hereData=await hereResp.json();
+
+    if(!hereResp.ok||!hereData.routes||!hereData.routes.length){
+      mostrarErro('HERE Maps: não foi possível calcular a rota.');clearInterval(timer);return;
+    }
+
+    // Decode polyline
+    var section=hereData.routes[0].sections[0];
+    var polylineStr=section.polyline;
+    var summary=section.summary;
+    var distKm=Math.round(summary.length/100)/10;
+    var durMin=Math.round(summary.duration/60);
+
+    // Decode HERE flexible polyline
+    rotaCoords=[];
+    if(typeof H!=='undefined'&&H.geo){
+      // HERE JS SDK
+    } else {
+      // Manual decode usando nossa implementação
+      rotaCoords=decodeFP(polylineStr);
+    }
+
+    if(!rotaCoords.length){mostrarErro('Erro ao decodificar a rota.');clearInterval(timer);return;}
+    console.log('Rota decodificada:', rotaCoords.length, 'pontos. Primeiro:', rotaCoords[0], 'Último:', rotaCoords[rotaCoords.length-1]);
+
+    // STEP 3: Traffic via HERE (browser)
+    setSteps(3);
+    var trafficStatus='indisponível';
+    var trafficCor='#6b7280';
+    var trafficVel=0;
+    try{
+      var bbox=[
+        Math.min(geo.origem.lon,geo.destino.lon)-0.03,
+        Math.min(geo.origem.lat,geo.destino.lat)-0.03,
+        Math.max(geo.origem.lon,geo.destino.lon)+0.03,
+        Math.max(geo.origem.lat,geo.destino.lat)+0.03,
+      ];
+      var tfResp=await fetch('https://data.traffic.hereapi.com/v7/flow?'+new URLSearchParams({
+        apiKey:HERE_KEY,locationReferencing:'shape',
+        in:`bbox:${bbox.join(',')}`
+      }));
+      if(tfResp.ok){
+        var tfData=await tfResp.json();
+        var speeds=(tfData.results||[]).slice(0,20).map(r=>r.currentFlow?.speed||0).filter(s=>s>0);
+        if(speeds.length){
+          var avg=speeds.reduce((a,b)=>a+b,0)/speeds.length;
+          trafficVel=Math.round(avg);
+          if(avg>60){trafficStatus='livre';trafficCor='#22c55e';}
+          else if(avg>30){trafficStatus='moderado';trafficCor='#f59e0b';}
+          else{trafficStatus='congestionado';trafficCor='#ef4444';}
+        }
+      }
+    }catch(e){}
+
+    // STEP 4: Backend calcula semáforos e tempo
+    setSteps(4);
+    var calcResp=await fetch('/calcular',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({distancia_km:distKm,duracao_min:durMin,transito_status:trafficStatus})});
+    var calcData=await calcResp.json();
+
+    clearInterval(timer);
+
+    // Desenha rota
+    desenharRota(geo,distKm);
+
+    // Stats
+    document.getElementById('s-dist').textContent=distKm;
+    document.getElementById('s-total').textContent=(calcData.duracao_total_min||durMin)+' min';
+    document.getElementById('s-trans').textContent=(calcData.duracao_transito_min||durMin)+' min';
+    document.getElementById('s-semaf').textContent=calcData.semaforos?.semaforos||'—';
+    document.getElementById('stats').style.display='grid';
+
+    // Breakdown
+    var atrasoT=(calcData.duracao_transito_min||durMin)-durMin;
+    document.getElementById('tb-base').textContent=durMin+' min';
+    document.getElementById('tb-trans').textContent='+'+(atrasoT>0?atrasoT:0)+' min';
+    document.getElementById('tb-sem').textContent='+'+( calcData.semaforos?.atraso_min||0)+' min';
+    document.getElementById('tb-tot').textContent=(calcData.duracao_total_min||durMin)+' min';
+    document.getElementById('tbreak').className='tbreak show';
+
+    // Nomes
+    document.getElementById('rn-o').textContent=geo.origem.nome;
+    document.getElementById('rn-d').textContent=geo.destino.nome;
+    document.getElementById('rnames').className='rnames show';
+
+    // Trânsito
+    document.getElementById('tdot').style.cssText=`background:${trafficCor};box-shadow:0 0 8px ${trafficCor}`;
+    document.getElementById('ttxt').innerHTML=`🚦 Trânsito <b>${trafficStatus}</b>`+(trafficVel>0?` · ${trafficVel} km/h`:'');
+    document.getElementById('traf').className='traf show';
+
+    // Nav button
+    document.getElementById('bnav').className='bnav show';
+    dadosRota={distKm,durMin,calcData,geo,trafficStatus,trafficVel};
+
+    document.getElementById('lbox').innerHTML=['Geocodificação','Rota calculada','Trânsito obtido','Mapa pronto']
+      .map(lb=>`<div class="ls done"><span style="color:var(--green)">✓</span> ${lb}</div>`).join('');
+
+    if(window.innerWidth<=768)document.getElementById('panel').classList.add('hidden');
+
+  }catch(e){
+    clearInterval(timer);
+    mostrarErro('Erro: '+e.message);
+  }finally{
+    btn.disabled=false;btn.querySelector('span').textContent='🗺️ Calcular Rota';
+  }
+}
+
+function desenharRota(geo,distKm){
+  if(mPolyline)leafMap.removeLayer(mPolyline);
+  if(mOrig)leafMap.removeLayer(mOrig);
+  if(mDest)leafMap.removeLayer(mDest);
+
+  mPolyline=L.polyline(rotaCoords,{color:'#6c63ff',weight:6,opacity:0.9}).addTo(leafMap);
+
+  var iO=L.divIcon({className:'',html:'<div style="width:16px;height:16px;background:#48bfe3;border-radius:50%;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.25);"></div>',iconSize:[16,16],iconAnchor:[8,8]});
+  var iD=L.divIcon({className:'',html:'<div style="width:16px;height:16px;background:#6c63ff;border-radius:50%;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.25);"></div>',iconSize:[16,16],iconAnchor:[8,8]});
+  mOrig=L.marker(coordOrig,{icon:iO}).bindPopup('<b>Origem</b><br>'+geo.origem.nome).addTo(leafMap);
+  mDest=L.marker(coordDest,{icon:iD}).bindPopup('<b>Destino</b><br>'+geo.destino.nome).addTo(leafMap);
+  var bounds = mPolyline.getBounds();
+  setTimeout(function(){
+    leafMap.invalidateSize(true);
+    leafMap.fitBounds(bounds, {padding:[50,50], maxZoom:15});
+    // Force tile reload
+    leafMap.eachLayer(function(layer){
+      if(layer.redraw) layer.redraw();
+    });
+  }, 300);
+}
+
+// ── FLEXIBLE POLYLINE DECODER ──
+function decodeFP(encoded) {
+  // HERE Flexible Polyline - official decoding table
+  var DT = [62,-1,-1,52,53,54,55,56,57,58,59,60,61,-1,-1,-1,-1,-1,-1,-1,
+    0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,
+    -1,-1,-1,-1,63,-1,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,
+    43,44,45,46,47,48,49,50,51];
+  function dc(c){return DT[c.charCodeAt(0)-45];}
+  function du(enc,i){
+    var r=0,s=0,v;
+    do{v=dc(enc[i++]);r|=(v&0x1f)<<s;s+=5;}while(v&0x20);
+    return[r,i];
+  }
+  function ts(v){return(v&1)?~(v>>1):(v>>1);}
+  var result=[];
+  try{
+    var r0=du(encoded,0); // version
+    var r1=du(encoded,r0[1]); // header
+    var hv=r1[0];
+    var precision=hv&15;
+    var has3d=((hv>>4)&7)>0;
+    var mult=Math.pow(10,precision);
+    var idx=r1[1],lat=0,lng=0;
+    while(idx<encoded.length){
+      var rl=du(encoded,idx);lat+=ts(rl[0]);idx=rl[1];
+      var rg=du(encoded,idx);lng+=ts(rg[0]);idx=rg[1];
+      if(has3d){var r3=du(encoded,idx);idx=r3[1];}
+      result.push([lat/mult,lng/mult]);
+    }
+    console.log('Decoded',result.length,'pts. First:',result[0]);
+  }catch(e){console.error('FP decode error:',e);}
+  return result;
+}
+
+// ── NAVIGATION ──
+function abrirNav(){
+  if(!rotaCoords.length){toast('Calcule uma rota primeiro!');return;}
+  document.getElementById('nav-overlay').classList.add('show');
+  navIdx=0;navPlaying=false;
+  document.getElementById('nav-play').textContent='▶ Iniciar';
+  document.getElementById('nav-pb').style.width='0%';
+  document.getElementById('nav-dist').textContent='Rota: '+(dadosRota?.distKm||'?')+' km';
+  document.getElementById('nav-eta').textContent='Chegada estimada: '+(dadosRota?.calcData?.duracao_total_min||'?')+' min';
+
+  if(!navMap){
+    navMap=L.map('nav-map',{zoomControl:false,attributionControl:false}).setView(rotaCoords[0],17);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(navMap);
+  } else {
+    navMap.setView(rotaCoords[0],17);
+  }
+
+  if(nPolyline)navMap.removeLayer(nPolyline);
+  nPolyline=L.polyline(rotaCoords,{color:'#6c63ff',weight:7,opacity:0.9}).addTo(navMap);
+
+  // Destino
+  var iD=L.divIcon({className:'',html:'<div style="width:20px;height:20px;background:#6c63ff;border-radius:50%;border:3px solid #fff;box-shadow:0 0 12px #6c63ff;"></div>',iconSize:[20,20],iconAnchor:[10,10]});
+  L.marker(rotaCoords[rotaCoords.length-1],{icon:iD}).addTo(navMap);
+
+  // Carro
+  var iC=L.divIcon({className:'',html:'<div style="width:28px;height:28px;background:linear-gradient(135deg,#6c63ff,#48bfe3);border-radius:50%;border:3px solid #fff;box-shadow:0 0 18px #6c63ff,0 0 5px #48bfe3;"></div>',iconSize:[28,28],iconAnchor:[14,14]});
+  if(nMarker)navMap.removeLayer(nMarker);
+  nMarker=L.marker(rotaCoords[0],{icon:iC}).addTo(navMap);
+
+  iniciarGPS();
+}
+
+function fecharNav(){
+  document.getElementById('nav-overlay').classList.remove('show');
+  if(navTimer){clearInterval(navTimer);navTimer=null;}
+  navPlaying=false;
+  if(modo3D){toggle3D();}
+}
+
+function togglePlay(){
+  if(navPlaying){
+    clearInterval(navTimer);navTimer=null;navPlaying=false;
+    document.getElementById('nav-play').textContent='▶ Continuar';
+  } else {
+    if(navIdx>=rotaCoords.length-1)resetNav();
+    navPlaying=true;
+    document.getElementById('nav-play').textContent='⏸ Pausar';
+    navTimer=setInterval(function(){
+      if(navIdx>=rotaCoords.length-1){
+        clearInterval(navTimer);navPlaying=false;
+        document.getElementById('nav-play').textContent='✓ Chegou!';
+        document.getElementById('nav-pb').style.width='100%';
+        toast('🎉 Destino atingido!');return;
+      }
+      navIdx++;
+      var pos=rotaCoords[navIdx];
+      nMarker.setLatLng(pos);
+      navMap.panTo(pos,{animate:true,duration:0.3});
+      var pct=Math.round(navIdx/(rotaCoords.length-1)*100);
+      document.getElementById('nav-pb').style.width=pct+'%';
+      var kmRest=((1-pct/100)*(dadosRota?.distKm||0)).toFixed(1);
+      document.getElementById('nav-dist').textContent='Restam: '+kmRest+' km';
+    },30);
+  }
+}
+
+function resetNav(){
+  if(navTimer){clearInterval(navTimer);navTimer=null;}
+  navPlaying=false;navIdx=0;
+  if(nMarker)nMarker.setLatLng(rotaCoords[0]);
+  if(navMap)navMap.setView(rotaCoords[0],17);
+  document.getElementById('nav-play').textContent='▶ Iniciar';
+  document.getElementById('nav-pb').style.width='0%';
+  document.getElementById('nav-dist').textContent='Rota: '+(dadosRota?.distKm||'?')+' km';
+}
+
+function toggle3D(){
+  modo3D=!modo3D;
+  var m=document.getElementById('nav-map');
+  var b=document.getElementById('btn3d');
+  if(modo3D){
+    m.classList.add('tilt');
+    b.textContent='3D';b.style.color='#facc15';
+    toast('🌐 Modo 3D ativado');
+  } else {
+    m.classList.remove('tilt');
+    b.textContent='2D';b.style.color='var(--accent2)';
+  }
+  setTimeout(()=>{if(navMap)navMap.invalidateSize();},400);
+}
+
+// ── UTILS ──
+function mostrarErro(msg){
+  document.getElementById('err').textContent='⚠ '+msg;
+  document.getElementById('err').className='err show';
+  document.getElementById('lbox').className='lbox';
+}
+function toast(msg){
+  var t=document.createElement('div');
+  t.style.cssText='position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#1a1d2e;border:1px solid rgba(108,99,255,0.4);color:#e8eaf0;padding:10px 20px;border-radius:20px;font-size:0.79rem;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,0.4);font-family:DM Sans,sans-serif;white-space:nowrap;';
+  t.textContent=msg;document.body.appendChild(t);setTimeout(()=>t.remove(),3000);
+}
+
+// ── PWA ──
+var dP=null;
+window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();dP=e;document.getElementById('ibanner').classList.add('show');document.getElementById('ihbtn').style.display='flex';});
+function installPWA(){if(!dP)return;dP.prompt();dP.userChoice.then(()=>{dP=null;document.getElementById('ibanner').classList.remove('show');document.getElementById('ihbtn').style.display='none';});}
+if('serviceWorker' in navigator)navigator.serviceWorker.register('/static/sw.js').catch(()=>{});
+
+// ── KEYBOARD ──
+document.addEventListener('DOMContentLoaded',()=>{
+  document.getElementById('origem').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('destino').focus();});
+  document.getElementById('destino').addEventListener('keydown',e=>{if(e.key==='Enter')calcularRota();});
+});
+</script>
+</body>
+</html>

@@ -1,11 +1,11 @@
 {
-  "name": "Eleven Maps",
-  "short_name": "Eleven Maps",
-  "description": "Navegação inteligente com algoritmo A*",
+  "name": "Teseu",
+  "short_name": "Teseu",
+  "description": "Navegação inteligente para São Paulo",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0d0f14",
-  "theme_color": "#6c63ff",
+  "background_color": "#ffffff",
+  "theme_color": "#1c1c1e",
   "orientation": "portrait-primary",
   "icons": [
     {

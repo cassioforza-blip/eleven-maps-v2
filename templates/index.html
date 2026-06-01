@@ -5,9 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
   <meta name="theme-color" content="#2B4C7E"/>
   <meta name="apple-mobile-web-app-capable" content="yes"/>
-  <meta name="apple-mobile-web-app-title" content="Eleven Maps"/>
+  <meta name="apple-mobile-web-app-title" content="Teseu"/>
   <link rel="manifest" href="/static/manifest.json"/>
-  <title>Eleven Maps</title>
+  <title>Teseu</title>
 
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css"/>
   <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -242,7 +242,7 @@
     <div class="header">
       <div class="logo">
         <div class="logo-icon">E</div>
-        <span class="logo-name"><span>Eleven</span> Maps</span>
+        <span class="logo-name">Teseu</span>
       </div>
       <div class="hright">
         <span id="clock"></span>
@@ -253,7 +253,7 @@
     <div class="form">
 
       <div class="ibanner" id="ibanner">
-        Instale o Eleven Maps!
+        Instale o Teseu!
         <button class="ibtn" onclick="installPWA()">Instalar</button>
       </div>
 
@@ -383,7 +383,7 @@
 
       <div class="divider"></div>
       <div class="footer">
-        <span>Eleven Maps v2</span><span>·</span><span>HERE Maps · SP</span>
+        <span>Teseu v2</span><span>·</span><span>HERE Maps · SP</span>
       </div>
 
     </div>
@@ -465,12 +465,12 @@ var mPolyline=null,mGlow=null,mOrig=null,mDest=null,nPolyline=null,nMarker=null;
 var navIdx=0,navPlaying=false,modo3D=false,travarNorte=true;
 var gpsWatchId=null,gpsAtivo=false,distTotalPercorrida=0,ultimaPosGPS=null;
 var modoRota='fast',tipoVia='bairros',modoTransporte='car';
-var endCasa=localStorage.getItem('eleven_casa')||'';
+var endCasa=localStorage.getItem('teseu_casa')||'';
 var dadosRota=null,stepInterval=null;
 
 // ── THEME ──
-function initTheme(){var s=localStorage.getItem('eleven-theme')||'light';document.documentElement.setAttribute('data-theme',s);document.getElementById('themeToggle').textContent=s==='dark'?'☀':'☽';}
-function toggleTheme(){var c=document.documentElement.getAttribute('data-theme'),n=c==='dark'?'light':'dark';document.documentElement.setAttribute('data-theme',n);localStorage.setItem('eleven-theme',n);document.getElementById('themeToggle').textContent=n==='dark'?'☀':'☽';}
+function initTheme(){var s=localStorage.getItem('teseu-theme')||'light';document.documentElement.setAttribute('data-theme',s);document.getElementById('themeToggle').textContent=s==='dark'?'☀':'☽';}
+function toggleTheme(){var c=document.documentElement.getAttribute('data-theme'),n=c==='dark'?'light':'dark';document.documentElement.setAttribute('data-theme',n);localStorage.setItem('teseu-theme',n);document.getElementById('themeToggle').textContent=n==='dark'?'☀':'☽';}
 document.getElementById('themeToggle').addEventListener('click',toggleTheme);
 initTheme();
 
@@ -499,12 +499,12 @@ function setTransporte(t){modoTransporte=t;['car','walk','bike','metro'].forEach
 
 // ── CASA ──
 function atualizarCasaUI(){var l=document.getElementById('hlbl'),b=document.getElementById('btnhome');if(endCasa){l.textContent='🏠 '+endCasa.substring(0,28)+(endCasa.length>28?'...':'');b.classList.add('hs');}else{l.textContent='🏠 Endereço de casa não salvo';b.classList.remove('hs');}}
-function salvarCasa(){var v=document.getElementById('origem').value.trim();if(!v){toast('Digite um endereço de origem primeiro!');return;}endCasa=v;localStorage.setItem('eleven_casa',endCasa);atualizarCasaUI();toast('🏠 Casa salva!');}
+function salvarCasa(){var v=document.getElementById('origem').value.trim();if(!v){toast('Digite um endereço de origem primeiro!');return;}endCasa=v;localStorage.setItem('teseu_casa',endCasa);atualizarCasaUI();toast('🏠 Casa salva!');}
 function usarCasa(){if(!endCasa){toast('Salve um endereço de casa primeiro!');return;}document.getElementById('origem').value=endCasa;}
 
 // ── HISTORY ──
-function getHistory(){try{return JSON.parse(localStorage.getItem('eleven-history'))||[];}catch{return[];}}
-function saveToHistory(o,d){var h=getHistory();if(h.length&&h[0].origem===o&&h[0].destino===d)return;h.unshift({origem:o,destino:d});if(h.length>5)h=h.slice(0,5);localStorage.setItem('eleven-history',JSON.stringify(h));renderHistory();}
+function getHistory(){try{return JSON.parse(localStorage.getItem('teseu-history'))||[];}catch{return[];}}
+function saveToHistory(o,d){var h=getHistory();if(h.length&&h[0].origem===o&&h[0].destino===d)return;h.unshift({origem:o,destino:d});if(h.length>5)h=h.slice(0,5);localStorage.setItem('teseu-history',JSON.stringify(h));renderHistory();}
 function renderHistory(){var h=getHistory(),list=document.getElementById('historyList'),empty=document.getElementById('historyEmpty');list.innerHTML='';if(!h.length){empty.classList.remove('hidden');return;}empty.classList.add('hidden');h.forEach(item=>{var li=document.createElement('li');li.className='history-item';var t=s=>s.length>18?s.slice(0,18)+'…':s;li.innerHTML=`<span class="h-alpha">α</span>${t(item.origem)}<span style="color:var(--text-subtle);font-size:10px;">→</span><span class="h-omega">Ω</span>${t(item.destino)}`;li.addEventListener('click',()=>{document.getElementById('origem').value=item.origem;document.getElementById('destino').value=item.destino;document.getElementById('historyPanel').classList.add('hidden');});list.appendChild(li);});}
 document.getElementById('historyBtn').addEventListener('click',()=>{var p=document.getElementById('historyPanel');p.classList.toggle('hidden');if(!p.classList.contains('hidden'))renderHistory();});
 
@@ -782,7 +782,7 @@ function iniciarGPS(){
       }
     }
     var ag=Date.now();
-    if(ag-uB>6000){uB=ag;fetch('https://nominatim.openstreetmap.org/reverse?lat='+lat+'&lon='+lng+'&format=json',{headers:{'User-Agent':'eleven-maps-v2/1.0'}}).then(r=>r.json()).then(data=>{var road=data.address&&(data.address.road||data.address.pedestrian||data.address.neighbourhood)||'';if(road&&road!==uR){uR=road;document.getElementById('nav-current-street').textContent=road;document.getElementById('nav-next-street').textContent=road;}}).catch(()=>{});}
+    if(ag-uB>6000){uB=ag;fetch('https://nominatim.openstreetmap.org/reverse?lat='+lat+'&lon='+lng+'&format=json',{headers:{'User-Agent':'teseu-v2/1.0'}}).then(r=>r.json()).then(data=>{var road=data.address&&(data.address.road||data.address.pedestrian||data.address.neighbourhood)||'';if(road&&road!==uR){uR=road;document.getElementById('nav-current-street').textContent=road;document.getElementById('nav-next-street').textContent=road;}}).catch(()=>{});}
     if(dD<0.03){toast('Chegou ao destino!');pararGPS();document.getElementById('nav-pb').style.width='100%';document.getElementById('nav-play').style.display='block';document.getElementById('nav-play').textContent='Chegou!';}
   },function(err){var msgs={1:'GPS bloqueado.',2:'Sinal fraco.',3:'GPS timeout.'};toast(msgs[err.code]||'Erro GPS');document.getElementById('nav-play').style.display='block';},{enableHighAccuracy:true,maximumAge:2000,timeout:30000});
 }
@@ -797,7 +797,7 @@ function usarLocalizacao(){
   if(!navigator.geolocation){toast('GPS não disponível.');btn.textContent='📍 Minha localização';return;}
   navigator.geolocation.getCurrentPosition(function(p){
     var lat=p.coords.latitude,lng=p.coords.longitude;
-    fetch('https://nominatim.openstreetmap.org/reverse?lat='+lat+'&lon='+lng+'&format=jsonv2',{headers:{'User-Agent':'eleven-maps-v2/1.0'}})
+    fetch('https://nominatim.openstreetmap.org/reverse?lat='+lat+'&lon='+lng+'&format=jsonv2',{headers:{'User-Agent':'teseu-v2/1.0'}})
       .then(r=>r.json()).then(d=>{var partes=(d.display_name||'').split(',');document.getElementById('origem').value=partes.slice(0,3).join(',').trim();btn.textContent='📍 Minha localização';toast('📍 Localização obtida!');})
       .catch(()=>{document.getElementById('origem').value=lat.toFixed(6)+','+lng.toFixed(6);btn.textContent='📍 Minha localização';});
   },function(e){btn.textContent='📍 Minha localização';toast('Erro GPS: '+e.message);},{enableHighAccuracy:true,timeout:30000,maximumAge:10000});
